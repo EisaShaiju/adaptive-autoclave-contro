@@ -4,7 +4,7 @@ Stores all physical parameters, spatial grids, and simulation limits based on Du
 """
 import numpy as np
 
-# --- 1. PHYSICAL PARAMETERS ---
+# ---   1. PHYSICAL PARAMETERS ---
 KC = 0.23793          # Thermal conductivity of composite (W/m/K)
 RHO_C = 1890          # Density of composite (kg/m^3)
 CPC = 1134            # Heat capacity of composite (J/kg/K)
