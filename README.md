@@ -37,6 +37,18 @@ Running the Phase 3 closed-loop solver on a standard local machine yields the fo
 * **Constraint Violations:** 2 (Due to linearized stiffness during exothermic spike)
 * **Average Compute Time:** ~120 ms/step 
 
+## Visualizing Control Performance
+
+### Phase 2: Open-Loop Thermal Runaway
+In the unmanaged open-loop baseline, the autoclave air follows a static, pre-programmed ramp-and-hold profile. Because the system is blind to the internal state of the composite, the exothermic chemical reaction during the gelation phase causes the center temperature to violently spike past 140°C, leading to thermal degradation and severe internal residual stress.
+
+![Open-Loop Thermal Runaway](assets/open_loop_baseline.png)
+
+### Phase 3: Closed-Loop MPC Active Control
+With the CVXPY MPC active, the solver's prediction horizon anticipates the exponential exothermic heat generation. Before the center temperature can critically overshoot, the controller dynamically drops the autoclave temperature (engaging a "Thermal Brake" around t=105 mins) to pull excess heat out of the composite surface. This contains the internal spike and ensures the center and surface cure uniformly ($\Delta \alpha = 0$).
+
+![Closed-Loop MPC Performance](assets/closed_loop_mpc.png)
+
 ## Repository Structure
 
 ```text
@@ -55,15 +67,3 @@ Running the Phase 3 closed-loop solver on a standard local machine yields the fo
 ├── LICENSE
 ├── README.md
 └── requirements.txt                    # Environment dependencies (NumPy, SciPy, CVXPY, Matplotlib)
-
-## Visualizing Control Performance
-
-### Phase 2: Open-Loop Thermal Runaway
-In the unmanaged open-loop baseline, the autoclave air follows a static, pre-programmed ramp-and-hold profile. Because the system is blind to the internal state of the composite, the exothermic chemical reaction during the gelation phase causes the center temperature to violently spike past 140°C, leading to thermal degradation and severe internal residual stress.
-
-![Open-Loop Thermal Runaway](assets/open_loop_baseline.png)
-
-### Phase 3: Closed-Loop MPC Active Control
-With the CVXPY MPC active, the solver's prediction horizon anticipates the exponential exothermic heat generation. Before the center temperature can critically overshoot, the controller dynamically drops the autoclave temperature (engaging a "Thermal Brake" around t=105 mins) to pull excess heat out of the composite surface. This contains the internal spike and ensures the center and surface cure uniformly ($\Delta \alpha = 0$).
-
-![Closed-Loop MPC Performance](assets/closed_loop_mpc.png)
