@@ -19,7 +19,8 @@ class MPCSolver:
         for i in range(3): # Heavily penalize composite temps deviating from target
             self.Q[i, i] = 100.0 
             
-        self.R = np.array([[1.0]])  # Penalty for aggressive heater changes
+        self.R = np.array([[0.1]])  # Penalty for absolute effort (kept small)
+        self.S = np.array([[1.0]])  # Penalty for rate of change (Delta u)
         
     def update_matrices(self, T0_degC, alpha0):
         """Builds the Linearized Ap and Bp matrices for the current step."""
@@ -97,10 +98,15 @@ class MPCSolver:
         for k in range(self.N):
             # Cost function: Track target + minimize actuator effort
             cost += cp.quad_form(x[:, k] - x_target, self.Q)
+
+            # Absolute effort penalty(R)
+            cost+=cp.quad_form(u[:,k],self.R)
+
+            # Rate of change/slew rate penalty
             if k == 0:
-                cost += cp.quad_form(u[:, k] - u_prev, self.R)
+                cost += cp.quad_form(u[:, k] - u_prev, self.S)
             else:
-                cost += cp.quad_form(u[:, k] - u[:, k-1], self.R)
+                cost += cp.quad_form(u[:, k] - u[:, k-1], self.S)
             
             # System Dynamics Constraint
             constraints += [x[:, k+1] == Ap @ x[:, k] + Bp * u[0, k]]
