@@ -49,7 +49,7 @@ In the unmanaged open-loop baseline, the autoclave air follows a static, pre-pro
 ### Phase 3: Closed-Loop MPC Active Control
 With the CVXPY MPC active, the solver's prediction horizon anticipates the exponential exothermic heat generation. Before the center temperature can critically overshoot, the controller dynamically drops the autoclave temperature (engaging a "Thermal Brake" around t=105 mins) to pull excess heat out of the composite surface. This contains the internal spike and ensures the center and surface cure uniformly ($\Delta \alpha = 0$).
 
-![Closed-Loop MPC Performance](assets\closedloop_test.png)
+![Closed-Loop MPC Performance](assets/closedloop_test.png)
 
 ## Repository Structure
 
