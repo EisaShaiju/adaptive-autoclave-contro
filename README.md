@@ -6,7 +6,7 @@
 ![Status](https://img.shields.io/badge/Status-Phase_3_Complete-success)
 
 ## Overview
-This repository contains the simulation environment and control architecture for optimizing the autoclave curing process of thick-sectioned composite laminates. The project aims to replace mathematically heavy, open-loop curing cycles with real-time, closed-loop Model Predictive Control (MPC), and ultimately, highly efficient event-driven Spiking Neural Networks (SNNs).
+This repository contains the simulation environment and control architecture for optimizing the autoclave curing process of thick-sectioned composite laminates. The project aims to replace unmanaged open-loop curing cycles with real-time closed-loop Model Predictive Control (MPC), and ultimately to demonstrate that an event-driven Spiking Neural Network (SNN) solver can correctly close the same MPC loop — producing equivalent control quality while being architecturally suited to low-power neuromorphic and FPGA edge deployment.
 
 The core physical plant is modeled based on the highly non-linear Arrhenius curing kinetics and 1D spatial heat transfer dynamics detailed in Dufour et al. (2004).
 
@@ -25,17 +25,19 @@ This research is divided into four main phases:
 - [x] **Phase 3: Closed-Loop CVXPY Baseline**
   - Integration of an active-set/interior-point QP solver (CVXPY) into the simulation loop.
   - Enforcement of real-time spatial constraints (10°C max gradient) to prevent residual thermal stress.
-  - Successfully demonstrated dynamic disturbance rejection and active cooling ("Thermal Braking") during the exothermic gelation phase.
+  - Verified active cooling ("Thermal Braking") during the exothermic gelation phase; disturbance rejection tested via a 15°C step perturbation injected directly into the plant state at step 60.
 - [ ] **Phase 4: Neuromorphic SNN Integration (In Progress)**
-  - Mapping the QP objective landscape to an event-driven Spiking Neural Network.
-  - Bypassing heavy matrix inversion to achieve microsecond, low-power adaptive control suitable for aerospace manufacturing edge devices.
+  - Mapping each per-step MPC QP to an equivalent spiking LIF dynamical system (Mancoo et al. equivalence framework).
+  - Validating that SNN-QP produces the same per-step control actions and closed-loop trajectories as CVXPY, within tolerance.
+  - Reporting convergence behaviour (iterations to tolerance) as the primary solver metric.
+  - Deployment value lies in neuromorphic/FPGA hardware (event-driven, massively parallel); CPU runtime is not the comparison axis.
 
 ## Baseline Metrics (Classical MPC)
-Running the Phase 3 closed-loop solver on a standard local machine yields the following baseline for the Spiking Neural Network to beat:
-* **Max Temp Overshoot:** ~13.6°C (Safely contained below degradation limits)
-* **Final Cure Uniformity:** 0.0000 Δα (Perfect structural integrity)
-* **Constraint Violations:** 2 (Due to linearized stiffness during exothermic spike)
-* **Average Compute Time:** ~120 ms/step 
+Running the Phase 3 closed-loop solver establishes the following reference for SNN-QP equivalence validation:
+* **Max Temp Overshoot:** ~13.12°C (Safely contained below degradation limits)
+* **Peak In-Process Cure Gradient:** ~0.36 Δα (Maximum spatial non-uniformity during gelation)
+* **Constraint Violations:** 1 (During exothermic spike, logged for reference)
+* **Average Compute Time:** ~120 ms/step (CPU reference; not used as a comparison target — see Phase 4)
 
 ## Visualizing Control Performance
 
@@ -47,7 +49,7 @@ In the unmanaged open-loop baseline, the autoclave air follows a static, pre-pro
 ### Phase 3: Closed-Loop MPC Active Control
 With the CVXPY MPC active, the solver's prediction horizon anticipates the exponential exothermic heat generation. Before the center temperature can critically overshoot, the controller dynamically drops the autoclave temperature (engaging a "Thermal Brake" around t=105 mins) to pull excess heat out of the composite surface. This contains the internal spike and ensures the center and surface cure uniformly ($\Delta \alpha = 0$).
 
-![Closed-Loop MPC Performance](assets/closedloop_test.png)
+![Closed-Loop MPC Performance](assets\closedloop_test.png)
 
 ## Repository Structure
 
