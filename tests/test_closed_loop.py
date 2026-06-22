@@ -31,24 +31,27 @@ def run_closed_loop():
     Ta_profile = []
     solve_times = []
     gradient_violations = 0
-    
+
     current_Ta = 28.0
     current_state = plant.get_state()
 
     print("Starting Closed-Loop MPC Simulation with Disturbance...")
     
-    for k in range(time_steps):
-        # INJECT DISTURBANCE: Sudden drop in oven temp at t=60 mins
-        if k == 60:
-            print(">> INJECTING DISTURBANCE: Ta drops by 15 degrees!")
-            current_Ta -= 15.0
-            
-        # 1. Controller calculates next move
+    for k in range(time_steps):            
+        # 1. Controller calculates its planned optimal move based on current sensors
         current_Ta, s_time = controller.compute_control_action(current_state, current_Ta)
         solve_times.append(s_time)
-        Ta_profile.append(current_Ta)
+
+        # INJECT DISTURBANCE: Sudden drop in oven temp at t=60 mins
+        # This overrides the controller's plan and forces a physical shock to the oven
+        if k == 60:
+            print(">> INJECTING DISTURBANCE: Part looses 15 degrees of thermal energy")
+            plant.T_comp-=15.0
+            plant.T_tool-=15.0
         
-        # 2. Plant executes move
+        Ta_profile.append(current_Ta) # Log the actual applied temperature
+        
+        # 2. Plant executes the actual physical move
         current_state = plant.step(Ta_input=current_Ta)
         
         # 3. Log data
@@ -69,9 +72,6 @@ def run_closed_loop():
     max_temp_reached = max(max(history_Tc1), max(history_Tc3))
     max_overshoot = max(0.0, max_temp_reached - target_temp)
     
-    # Cure Uniformity: Delta Alpha at the end of the simulation
-    final_delta_alpha = abs(history_ac3[-1] - history_ac1[-1])
-    
     # Cure Uniformity: Max Delta Alpha during the critical gelation phase
     max_delta_alpha = max(np.abs(np.array(history_ac3) - np.array(history_ac1)))
     
@@ -79,7 +79,6 @@ def run_closed_loop():
 
     print("\n--- PHASE 3: MPC CONTROLLER METRICS ---")
     print(f"Max Temp Overshoot:    {max_overshoot:.2f} °C")
-    print(f"Final Cure Uniformity: {final_delta_alpha:.4f} (Delta Alpha)")
     print(f"Max Cure Delta:        {max_delta_alpha:.4f} (Delta Alpha during cure)")
     print(f"Constraint Violations: {gradient_violations}")
     print(f"Avg Solver Time/Step:  {avg_solve_time:.2f} ms")

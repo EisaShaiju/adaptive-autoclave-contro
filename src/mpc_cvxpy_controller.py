@@ -130,8 +130,14 @@ class MPCSolver:
             prob.solve(solver=cp.OSQP, warm_start=True)
             solve_time = (time.time() - start_time) * 1000 # Convert to ms
             
+            if prob.status in ['optimal_inaccurate', cp.OPTIMAL_INACCURATE]:
+                print(f" MPC LOG: Solve status '{prob.status}'. Linear approximation is struggling with the exotherm!")
+            
             if u.value is None:
+                print(f" MPC WARNING: Solver returned None. Falling back to previous input: {u_prev:.2f}°C")
                 return u_prev, solve_time
             return u.value[0, 0], solve_time
-        except Exception:
+        except Exception as e:
+            print(f" MPC CRITICAL ERROR: Solver crashed! Exception: {e}")
+            print(f" Falling back to previous input: {u_prev:.2f}°C")
             return u_prev, (time.time() - start_time) * 1000
