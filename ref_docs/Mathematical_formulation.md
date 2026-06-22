@@ -54,11 +54,17 @@ These scalar Jacobians are injected into the discrete-time transition matrix $A_
 
 ## 4. MPC Quadratic Programming Objective
 
-The control policy minimizes a cost function $J$ over a prediction horizon $N$, balancing setpoint tracking against aggressive actuator movements.
+The control policy minimizes a cost function $J$ over a prediction horizon $N$, balancing setpoint tracking against absolute energy consumption and aggressive actuator movements.
 
-$$\min_{u} \sum_{k=0}^{N-1} \left( (x_k - x_{target})^T Q (x_k - x_{target}) + \Delta u_k^T R \Delta u_k \right)$$
+$$\min_{u} \sum_{k=0}^{N-1} \left( (x_k - x_{target})^T Q (x_k - x_{target}) + u_k^T R u_k + \Delta u_k^T S \Delta u_k \right)$$
+
+**Where:**
+* **$Q$:** Penalty matrix for state deviation from the target temperature (Prioritizing composite nodes).
+* **$R$:** Penalty for absolute control effort (Minimizing overall energy usage).
+* **$S$:** Penalty for the rate of change of the control input ($\Delta u_k$), minimizing actuator wear and thermal shocks.
 
 **Subject to Physical Constraints:**
+
 1. **Actuator Limits:** $T_{a,min} \le u_k \le T_{a,max}$
-2. **Rate Limits:** $|\Delta u_k| \le \text{Rate}_{max}$
-3. **Thermal Stress Gradient:** $|T_{c1} - T_{c3}| \le 10^\circ\text{C}$
+2. **Rate Limits:** $|\Delta u_k| \le Rate_{max}$
+3. **Thermal Stress Gradient:** $|T_{c1} - T_{c3}| \le 10^\circ C$
