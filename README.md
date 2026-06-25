@@ -6,7 +6,7 @@
 ![Status](https://img.shields.io/badge/Status-Completed-success)
 
 ## Overview
-This repository contains the simulation environment and control architecture for optimizing the autoclave curing process of thick-sectioned composite laminates. The project aims to replace unmanaged open-loop curing cycles with real-time closed-loop Model Predictive Control (MPC), and ultimately to demonstrate that an event-driven Spiking Neural Network (SNN) solver can correctly close the same MPC loop producing equivalent control quality while being architecturally suited to low-power neuromorphic and FPGA edge deployment.
+This repository contains the simulation environment and control architecture for optimizing the autoclave curing process of thick-sectioned composite laminates. The project aims to replace unmanaged open-loop curing cycles with real-time closed-loop Model Predictive Control (MPC), and ultimately to demonstrate that an event-driven Spiking Neural Network (SNN) solver can correctly close the same MPC loop — producing equivalent control quality while being architecturally suited to low-power neuromorphic and FPGA edge deployment.
 
 The core physical plant is modeled based on the highly non-linear Arrhenius curing kinetics and 1D spatial heat transfer dynamics detailed in Dufour et al. (2004).
 
@@ -66,6 +66,9 @@ The SNN's strict adherence to the physical constraints causes high internal spik
 
 ![SNN-MPC Performance](assets/snn_closedloop_test.png)
 
+## Repository Structure
+
+```text
 ├── ref_docs/
 │   └── dufour mpc.pdf                  # Core mathematical reference literature
 ├── src/
