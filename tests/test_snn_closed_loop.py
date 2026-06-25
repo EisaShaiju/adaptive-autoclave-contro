@@ -11,11 +11,14 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import numpy as np
 import matplotlib.pyplot as plt
 from src.plant_simulator import AutoclavePlant
-from src.snn_mpc_controller import SNNMPCSolver # <-- THE SNN BRAIN
+from src.snn_mpc_controller import SNNMPCSolver
 import src.constants as const
 
 def run_snn_closed_loop():
-    print("\nStarting NEUROMORPHIC SNN-MPC Simulation with Disturbance...")
+    print("\n" + "="*60)
+    print(" Starting NEUROMORPHIC SNN-MPC Simulation")
+    print("="*60)
+    
     plant = AutoclavePlant(initial_temp=28.0)
     controller = SNNMPCSolver(horizon=20, target_temp=120.0)
 
@@ -32,6 +35,9 @@ def run_snn_closed_loop():
 
     # Simulate 160 minutes
     for k in range(160):
+        # --- PROGRESS TRACKER ---
+        print(f" Simulating Minute {k:03d}/160 | Current Oven Temp: {current_Ta:6.2f} °C")
+        
         # Read sensors
         current_state = plant.get_state()
         
@@ -44,7 +50,9 @@ def run_snn_closed_loop():
         
         # INJECT DISTURBANCE: Direct thermal shock to physical materials
         if k == 60:
+            print("\n" + "!"*60)
             print(">> INJECTING DISTURBANCE: Part loses 15°C of thermal energy!")
+            print("!"*60 + "\n")
             plant.T_comp -= 15.0
             plant.T_tool -= 15.0
             current_state = plant.get_state() # Update sensor read
@@ -67,35 +75,38 @@ def run_snn_closed_loop():
     max_delta_alpha = max(abs(np.array(history_alpha1) - np.array(history_alpha3)))
     avg_solve_time = np.mean(solve_times)
 
-    print("\n--- PHASE 4: SNN CONTROLLER METRICS ---")
+    print("\n" + "="*40)
+    print("--- PHASE 4: SNN CONTROLLER METRICS ---")
     print(f"Max Temp Overshoot:    {max_overshoot:.2f} °C")
     print(f"Max Cure Delta:        {max_delta_alpha:.4f} (Peak in-process difference)")
     print(f"Constraint Violations: {constraint_violations}")
     print(f"Avg Solver Time/Step:  {avg_solve_time:.2f} ms")
-    print("-----------------------------------------")
+    print("="*40 + "\n")
 
-    # --- PLOTTING (Exactly identical to Phase 3 for comparison) ---
+    # --- PLOTTING ---
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
     time_axis = np.arange(160)
 
     # Plot 1: Temperatures
     ax1.plot(time_axis, history_ta, 'k-', linewidth=2, label='Autoclave Air (Ta) - SNN Governed')
     ax1.plot(time_axis, history_ac3, 'b--', label='Surface Temp (Tc3)')
-    ax1.plot(time_axis, history_ac1, 'r:', label='Center Temp (Tc1)')
-    ax1.axvline(x=60, color='g', linestyle='-.', alpha=0.5, label='Disturbance Injected')
+    ax1.plot(time_axis, history_ac1, 'r-', label='Center Temp (Tc1)')
+    ax1.axhline(y=120.0, color='g', linestyle=':', linewidth=2, label='Target Temp (120°C)')
+    ax1.axvline(x=60, color='orange', linestyle='-.', alpha=0.8, label='Disturbance Injected')
+    
     ax1.set_ylabel('Temperature (°C)')
     ax1.set_title('Neuromorphic SNN-MPC: Temperature Tracking & Disturbance Rejection')
     ax1.grid(True)
-    ax1.legend()
+    ax1.legend(loc='lower right')
 
     # Plot 2: Alpha
     ax2.plot(time_axis, history_alpha3, 'b--', label='Surface Alpha')
-    ax2.plot(time_axis, history_alpha1, 'r:', label='Center Alpha')
+    ax2.plot(time_axis, history_alpha1, 'r-', label='Center Alpha')
     ax2.axhline(y=0.5, color='k', linestyle='-.', label='Gelation Point')
     ax2.set_xlabel('Time (Minutes)')
     ax2.set_ylabel('Fractional Degree of Cure')
     ax2.grid(True)
-    ax2.legend()
+    ax2.legend(loc='upper left')
 
     plt.tight_layout()
     plt.show()
