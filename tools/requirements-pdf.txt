@@ -1,0 +1,6 @@
+# Dependencies for tools/pdf_to_md.py (PDF -> Markdown with OCR fallback).
+# Pip-only and CPU-only: no system binaries (no Tesseract/Poppler), no PyTorch.
+# Install with:  pip install -r tools/requirements-pdf.txt
+pymupdf>=1.24            # native PDF text + page rendering (bundles its own libs)
+rapidocr-onnxruntime>=1.3  # OCR via ONNX Runtime (no Tesseract, no GPU needed)
+pillow>=10               # image decoding for the render->OCR handoff
