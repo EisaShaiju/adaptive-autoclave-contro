@@ -1,0 +1,231 @@
+{
+  "k": 84,
+  "rho_Ap": 1.5525065602018713,
+  "avg_T": 104.60794802977183,
+  "avg_a": 0.34886502849838935,
+  "hessian_symmetry_error": {
+    "raw": 0.0,
+    "conditioned": 2.220446049250313e-16
+  },
+  "hessian_eigenvalue_range": {
+    "raw": {
+      "min": 0.25421921207156634,
+      "max": 7676.3773020460485
+    },
+    "conditioned": {
+      "min": 0.0016727628283160797,
+      "max": 8.033723410306415
+    }
+  },
+  "hessian_condition_estimate": {
+    "raw_cond": 30195.89762509756,
+    "conditioned_cond": 4802.6673442919755,
+    "raw_eig_ratio": 30195.89762509782,
+    "conditioned_eig_ratio": 4802.6673442963365
+  },
+  "constraint_matrix_singular_values": {
+    "raw": {
+      "min": 1.4198201663067447,
+      "max": 3.1559020724846967
+    },
+    "conditioned": {
+      "min": 1.4291735258353773,
+      "max": 4.072290466666226
+    }
+  },
+  "input_variable_magnitude_range": {
+    "x0_and_u_prev_context": {
+      "u_prev": 130.0,
+      "TA_MIN": 10.0,
+      "TA_MAX": 130.0
+    },
+    "reference_osqp_solution_physical": null,
+    "reference_status": "infeasible"
+  },
+  "state_variable_magnitude_range": {
+    "x0_physical": {
+      "min": 0.20417420763061336,
+      "max": 121.75907652768433
+    },
+    "predicted_trajectory_at_reference_u": null
+  },
+  "slack_variable_magnitude_range": "not applicable -- this QP formulation has no slack variables (hard inequalities only)",
+  "arrhenius_jacobian_terms": {
+    "f0": 0.0026801074050308623,
+    "dT": 0.00037815549090986953,
+    "da": -0.002049739654746928,
+    "exo_mult": 2074.8677248677245,
+    "exo_dT": 0.6690108618312477,
+    "exo_da": -1.1150181030520794,
+    "da_self": 0.8769156207151844,
+    "dT_cross": 0.02268932945459217
+  },
+  "arrhenius_jacobian_magnitude_range": {
+    "min": -1.1150181030520794,
+    "max": 2074.8677248677245
+  },
+  "objective_term_magnitude_range": {
+    "tracking_term_(Gamma^T Q Gamma)": {
+      "frobenius_norm": 7674.741064903697,
+      "max_abs": 4524.091849558657
+    },
+    "effort_term_(R)": {
+      "frobenius_norm": 0.894427190999916,
+      "max_abs": 0.2
+    },
+    "slew_term_(Diff^T S Diff)": {
+      "frobenius_norm": 21.447610589527216,
+      "max_abs": 4.0
+    }
+  },
+  "constraint_row_magnitude_range_by_block": {
+    "box_upper": {
+      "min": 1.0,
+      "max": 1.0
+    },
+    "box_lower": {
+      "min": 1.0,
+      "max": 1.0
+    },
+    "slew_pos": {
+      "min": 1.0,
+      "max": 1.4142135623730951
+    },
+    "slew_neg": {
+      "min": 1.0,
+      "max": 1.4142135623730951
+    },
+    "gradient_pos": {
+      "min": 0.0,
+      "max": 1.198550031197389
+    },
+    "gradient_neg": {
+      "min": 0.0,
+      "max": 1.198550031197389
+    }
+  },
+  "constraint_row_magnitude_range_overall": {
+    "min": 0.0,
+    "max": 1.4142135623730951
+  },
+  "current_scaling_factors_D": {
+    "min": 1.4835767590522575,
+    "max": 67.29259134227672
+  },
+  "current_preconditioning_row_norm_factors": {
+    "min": 0.0,
+    "max": 0.8320922419383393
+  },
+  "diag_H_range_raw_vs_1_after_conditioning": {
+    "raw_diag_ratio_max_over_min": 2057.379758999844,
+    "conditioned_diag_ratio": 1.0000000000000004
+  },
+  "regularization_significance": {
+    "raw_added_to_H": 0.001,
+    "scaled_1e-3_over_D_squared_range": {
+      "min": 2.2083377405625694e-07,
+      "max": 0.00045433893684688776
+    },
+    "typical_H_scaled_entry_magnitude": 0.40459115286265446
+  },
+  "snn_state_magnitude_range_jacobi": {
+    "min": 11453.705770411534,
+    "max": 11650215.702913413
+  },
+  "snn_iteration_progress_jacobi": [
+    {
+      "iter": 0,
+      "norm_x": 11453.705770411534,
+      "objective": 411865943703.9012,
+      "max_violation": 1742741638080.476
+    },
+    {
+      "iter": 1,
+      "norm_x": 2981612.565505396,
+      "objective": -107355788095493.67,
+      "max_violation": 1742741638080.476
+    },
+    {
+      "iter": 5,
+      "norm_x": 5793978.4462405685,
+      "objective": -143429389588611.47,
+      "max_violation": 1742741638080.476
+    },
+    {
+      "iter": 50,
+      "norm_x": 6502517.460467879,
+      "objective": -145398973091431.25,
+      "max_violation": 1742741638080.476
+    },
+    {
+      "iter": 500,
+      "norm_x": 8465048.820626784,
+      "objective": -146366976635725.0,
+      "max_violation": 1742741638080.476
+    },
+    {
+      "iter": 2000,
+      "norm_x": 9876236.786591457,
+      "objective": -146488952221743.1,
+      "max_violation": 1742741638080.476
+    },
+    {
+      "iter": 8000,
+      "norm_x": 11650215.702913413,
+      "objective": -146531843187702.0,
+      "max_violation": 1742741638080.476
+    }
+  ],
+  "snn_final_jacobi": {
+    "converged": false,
+    "reason": "max_iterations",
+    "n_projections": 0,
+    "final_violation": 1742741638080.476
+  },
+  "comparison_1_2_3": {
+    "no_preconditioning": {
+      "k0_step_size": 6.513489115063831e-05,
+      "cond_H": 30195.89762509756,
+      "converged": false,
+      "reason": "max_iterations",
+      "final_violation": 134673.37644239204,
+      "final_objective": -120377056002339.75,
+      "final_x_norm": 247870.71402150852
+    },
+    "jacobi_preconditioning": {
+      "k0_step_size": 0.06223764180859812,
+      "cond_H": 4802.6673442919755,
+      "converged": false,
+      "reason": "max_iterations",
+      "final_violation_scaled": 1742741638080.476,
+      "final_violation_physical": 159321.76895048644,
+      "final_objective": -146531843187702.06,
+      "final_x_norm_physical": 326590.3843540635
+    },
+    "osqp_internal_scaling_existing_in_repo": {
+      "note": "This is the scaling OSQP already applies by default whenever the CVXPY/baseline controller solves -- it is NOT wired to the SNN's projected-gradient solver, which cannot consume it (snn_opt has no equivalent automatic equilibration).",
+      "with_default_scaling": {
+        "status": "infeasible",
+        "iterations": null,
+        "objective": Infinity
+      },
+      "scaling_disabled": {
+        "status": "infeasible",
+        "iterations": null,
+        "objective": Infinity
+      }
+    }
+  },
+  "minimal_experiment_eigen_whitening": {
+    "transform": "z = W zhat + 0,  W = H_raw^{-1/2} (symmetric eigen-whitening)",
+    "cond_H_whitened_sanity_check": 1.0000000000003064,
+    "cond_H_jacobi_for_comparison": 4802.6673442919755,
+    "converged": false,
+    "reason": "max_iterations",
+    "final_violation_physical": 162828.647376206,
+    "final_objective_whitened_space": -146538275591117.9,
+    "final_x_norm_physical": 302845.51644868107,
+    "jacobi_final_violation_physical_for_comparison": 159321.76895048644,
+    "jacobi_final_x_norm_physical_for_comparison": 326590.3843540635
+  }
+}

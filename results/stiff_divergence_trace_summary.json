@@ -1,0 +1,21 @@
+{
+  "note": "Supplementary diagnostic for the stiff_exotherm case in snn_solve_diagnostics.json. Traced with backend='python', record_trajectory=True (numerically identical to backend='c' per snn_opt docs; only instrumentation config differs -- no solver-equation change). Sampled checkpoints only, not the full 8001-length trajectory.",
+  "state": {"k": 84, "rho_Ap": 1.5525},
+  "k0_step_size": 6.223764e-02,
+  "cond_H_scaled": 4803.0,
+  "checkpoints": [
+    {"iter": 0,    "norm_x": 1.1454e+04, "objective": 4.1187e+11,  "max_violation": 1.7427e+12},
+    {"iter": 1,    "norm_x": 2.9816e+06, "objective": -1.0736e+14, "max_violation": 1.7427e+12},
+    {"iter": 2,    "norm_x": 4.4777e+06, "objective": -1.3436e+14, "max_violation": 1.7427e+12},
+    {"iter": 3,    "norm_x": 5.2271e+06, "objective": -1.4117e+14, "max_violation": 1.7427e+12},
+    {"iter": 10,   "norm_x": 6.0031e+06, "objective": -1.4392e+14, "max_violation": 1.7427e+12},
+    {"iter": 100,  "norm_x": 7.0919e+06, "objective": -1.4594e+14, "max_violation": 1.7427e+12},
+    {"iter": 1600, "norm_x": 9.6159e+06, "objective": -1.4648e+14, "max_violation": 1.7427e+12},
+    {"iter": 4000, "norm_x": 1.0749e+07, "objective": -1.4652e+14, "max_violation": 1.7427e+12},
+    {"iter": 8000, "norm_x": 1.1650e+07, "objective": -1.4653e+14, "max_violation": 1.7427e+12}
+  ],
+  "n_projections_over_full_run": 0,
+  "convergence_reason": "max_iterations",
+  "converged": false,
+  "finding": "Cold-start point is already violated by ~1.74e12 (constraint residual) before any iteration runs -- an artifact of Ap^20 amplification at rho=1.55, not a solver defect. The very first gradient step sends |x| from 1.1e4 to 2.98e6. max_violation is IDENTICAL (1.7427e12) at every single checkpoint from iter 0 through iter 8000 despite |x| growing 1000x over that span, and n_projections stays exactly 0 for the entire run -- meaning the adaptive projection's own residual check never once triggers a correction, even though an independent recomputation of C_s@x+d_s on the same points shows the same enormous violation throughout. This is either (a) the projection loop genuinely finding a direction where all 120 constraint rows read satisfied simultaneously despite the point being wildly infeasible in aggregate box-bound terms (geometrically possible but suspicious), or (b) a precision/bookkeeping artifact in the event-driven incremental residual tracking (g <- g - k1*G[:,j] via the precomputed Gram matrix) decoupling from the true residual under this magnitude. Not resolved further in this pass -- flagged as the primary numerical bottleneck, root cause unconfirmed beyond this evidence."
+}
