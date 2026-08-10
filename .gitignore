@@ -216,9 +216,3 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-
-# Local working notes (not part of the deliverable)
-CLAUDE.md
-implementation-notes.md
-.claude/
-docs/PROGRESS_UPDATE_MESSAGE.md
