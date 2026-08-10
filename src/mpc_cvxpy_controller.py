@@ -40,7 +40,7 @@ class MPCSolver:
         """Build this step's canonical QP via the shared condensation path
         (src/qp_builder.py) -- the SAME construction the SNN adapter uses,
         so both controllers solve numerically identical (H, f, A_ineq, b_ineq)
-        given the same (Ap, Bp, x0, u_prev). See the canonical-form contract."""
+        given the same (Ap, Bp, x0, u_prev). See docs/PHASE4_VALIDATION_REPORT.md §3."""
         avg_T = np.mean(current_state[0:3])
         avg_a = np.mean(current_state[7:10])
         Ap, Bp = self.update_matrices(avg_T, avg_a)

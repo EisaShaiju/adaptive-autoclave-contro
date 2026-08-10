@@ -1,7 +1,7 @@
 """
 qp_conditioning_probe.py
-Conditioning analysis of the QP, on the SAME representative
-stiff exotherm QP used in the SNN-QP verification stage (k=84, rho(Ap)=1.5525,
+Conditioning analysis per the docs/PHASE4_VALIDATION_REPORT.md §4, on the SAME representative
+stiff exotherm QP used in the snn-qp-verification stage (k=84, rho(Ap)=1.5525,
 same deterministic state generator). Read-only: does NOT modify src/dynamics.py,
 src/qp_builder.py, src/snn_mpc_controller.py, or snn_opt. Phi/Gamma and the
 Arrhenius Jacobian terms are recomputed inline here (mirroring qp_builder.py /

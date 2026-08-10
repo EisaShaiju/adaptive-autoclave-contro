@@ -1,8 +1,8 @@
 """
 shared_closed_loop_harness.py
-Diagnostic-only harness for closed-loop equivalence: one
+Diagnostic-only harness implementing the docs/PHASE4_VALIDATION_REPORT.md §2: one
 loop, two plants, the SAME disturbance-injection point (disturbance-before-
-compute) for both controllers, so the two
+compute) applied identically to both controllers, so the two
 controllers react to identical information at every step. The two existing
 scripts (tests/test_closed_loop.py, tests/test_snn_closed_loop.py) do NOT do
 this -- they inject at different points relative to control-compute -- so
@@ -131,12 +131,12 @@ def main():
     results_dir.mkdir(exist_ok=True)
     out_path = results_dir / "shared_closed_loop_run.json"
     manifest = {
-        "convention": "disturbance-before-compute",
+        "convention": "disturbance-before-compute (disturbance applied identically to both branches)",
         "note_on_fingerprints": (
             "qp_fingerprint_cvx hashes (Ap,Bp,x0,u_prev) [fully determines the CVXPY "
             "symbolic QP]; qp_fingerprint_snn hashes build_dense_qp's raw (H,g,C,d). "
             "These are each controller's own natural representation, not a cross-"
-            "controller canonical form (see the canonical-form contract for "
+            "controller canonical form (a full canonical extractor would additionally need "
             "what a full canonical extractor would additionally need)."
         ),
         "horizon": 20, "target_temp": 120.0, "time_steps": time_steps,

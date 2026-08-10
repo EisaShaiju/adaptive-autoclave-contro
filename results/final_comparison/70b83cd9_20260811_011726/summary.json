@@ -81,7 +81,7 @@
         "feasibility_tol": 0.01
       }
     },
-    "disturbance_convention": "disturbance-before-compute: injected into both plants identically, BEFORE either controller reads state / computes control, at the same step index.",
+    "disturbance_convention": "disturbance-before-compute: injected into both plants identically, BEFORE either controller reads state / computes control, at the same step index -- per the docs/PHASE4_VALIDATION_REPORT.md §2's prescribed pattern.",
     "generated_at": "2026-08-11T01:16:16"
   },
   "scenarios": {

@@ -55,7 +55,7 @@ def main():
     ctrl_cvx = MPCSolver(horizon=N, target_temp=TARGET_TEMP)
     ctrl_snn = SNNMPCSolver(horizon=N, target_temp=TARGET_TEMP)
 
-    # ---- 1. Ingredient parity (model-parity ingredients table) ----
+    # ---- 1. Ingredient parity (cost weights, horizon, target) ----
     print("\n--- 1. Cost-weight ingredient parity ---")
     check("Q_diag matches", np.array_equal(ctrl_cvx.Q_diag, ctrl_snn.Q_diag))
     check("R_val matches", ctrl_cvx.R_val == ctrl_snn.R_val)
