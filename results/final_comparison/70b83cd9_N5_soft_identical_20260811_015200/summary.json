@@ -1,0 +1,172 @@
+{
+  "provenance": {
+    "git_commit": "70b83cd9b5dd35b2caf967e936355102037f597b",
+    "git_working_tree_dirty_files": [
+      "M src/mpc_cvxpy_controller.py",
+      " M src/snn_mpc_controller.py",
+      "?? docs/PHASE4_VALIDATION_REPORT.md",
+      "?? results/",
+      "?? src/dynamics.py",
+      "?? src/qp_builder.py",
+      "?? tests/test_qp_parity.py",
+      "?? tools/conditioning_sweep.py",
+      "?? tools/convergence_blocker_probe.py",
+      "?? tools/final_controlled_comparison.py",
+      "?? tools/optimum_agreement_probe.py",
+      "?? tools/qp_conditioning_change_report.py",
+      "?? tools/qp_conditioning_probe.py",
+      "?? tools/qp_parity_probe.py",
+      "?? tools/shared_closed_loop_harness.py",
+      "?? tools/snn_qp_verification_probe.py",
+      "?? tools/snn_solve_instrumentation.py"
+    ],
+    "cvxpy_version": "1.9.0",
+    "numpy_version": "2.4.6",
+    "snn_opt_version": "0.4.0",
+    "snn_opt_compiled_kernel_available": true,
+    "snn_opt_kernel_has_openmp": false,
+    "random_seed": "N/A -- no RNG anywhere in plant/controllers (deterministic given config); confirmed by inspection, not assumed",
+    "sampling_time_TE_seconds": 60.0,
+    "horizon_N": 20,
+    "target_temp_degC": 120.0,
+    "initial_temp_degC": 28.0,
+    "physical_constraints": {
+      "TA_MIN": 10.0,
+      "TA_MAX": 130.0,
+      "TA_RATE_MAX": 4.0,
+      "GRADIENT_MAX": 10.0
+    },
+    "cost_weights_shared": {
+      "Q_diag_cvx": [
+        100.0,
+        100.0,
+        100.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "Q_diag_snn": [
+        100.0,
+        100.0,
+        100.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "R_val_cvx": 0.1,
+      "R_val_snn": 0.1,
+      "S_val_cvx": 1.0,
+      "S_val_snn": 1.0
+    },
+    "variable_ordering": "z = [Ta_0, ..., Ta_{N-1}] -- identical for both controllers (src/qp_builder.py)",
+    "canonical_qp_scaling_metadata": "None -- the shared canonical QP (src/qp_builder.py) is unscaled; SNNMPCSolver._condition applies a downstream, adapter-specific Jacobi scaling AFTER extraction, not part of the shared canonical form. CVXPY adapter applies no scaling at all.",
+    "snn_solver_config": {
+      "k0": null,
+      "k0_scale": 0.5,
+      "projection_method": "adaptive",
+      "max_iterations": 8000,
+      "max_projection_iters": 200,
+      "backend": "c",
+      "convergence": {
+        "enable_early_stopping": true,
+        "check_every": 50,
+        "min_iterations": 100,
+        "patience": 3,
+        "obj_rel_tol": 1e-07,
+        "proj_grad_tol": 0.05,
+        "feasibility_tol": 0.01
+      }
+    },
+    "disturbance_convention": "disturbance-before-compute: injected into both plants identically, BEFORE either controller reads state / computes control, at the same step index.",
+    "generated_at": "2026-08-11T01:51:56",
+    "shared_configuration": {
+      "trust_region": false,
+      "soft_state_constraints": true,
+      "k0_scale": 0.1,
+      "label": "N5_soft_identical",
+      "horizon": 5
+    }
+  },
+  "scenarios": {
+    "nominal_heatup": {
+      "label": "nominal_heatup",
+      "n_steps": 160,
+      "rms_applied_control_difference": 3.31712375100655e-13,
+      "rms_trajectory_difference": 6.786520101673872e-14,
+      "max_abs_control_difference": 3.7836400679225335e-12,
+      "max_abs_trajectory_difference": 1.2515439318724856e-13,
+      "snn_convergence_rate_raw": 0.9875,
+      "snn_convergence_rate_verified": 0.9875,
+      "max_constraint_residual": 6.533154461862978e-07,
+      "n_clipped_outputs": 0,
+      "pct_clipped_outputs": 0.0,
+      "cvxpy_n_clipped_outputs": 0,
+      "n_feasible_steps_for_objective_gap": 160,
+      "pct_feasible_steps_for_objective_gap": 100.0,
+      "mean_objective_gap_on_feasible_steps": -4.941424884850387e-11,
+      "max_abs_objective_gap_on_feasible_steps": 5.438039949966671e-09,
+      "n_steps_both_slew_saturated": 3,
+      "pct_steps_both_slew_saturated": 1.875
+    },
+    "disturbance_step60": {
+      "label": "disturbance_step60",
+      "n_steps": 160,
+      "rms_applied_control_difference": 3.31712375100655e-13,
+      "rms_trajectory_difference": 6.794440190880011e-14,
+      "max_abs_control_difference": 3.7836400679225335e-12,
+      "max_abs_trajectory_difference": 1.2515439318724856e-13,
+      "snn_convergence_rate_raw": 0.9875,
+      "snn_convergence_rate_verified": 0.9875,
+      "max_constraint_residual": 6.533154461862978e-07,
+      "n_clipped_outputs": 0,
+      "pct_clipped_outputs": 0.0,
+      "cvxpy_n_clipped_outputs": 0,
+      "n_feasible_steps_for_objective_gap": 160,
+      "pct_feasible_steps_for_objective_gap": 100.0,
+      "mean_objective_gap_on_feasible_steps": -4.941424884850387e-11,
+      "max_abs_objective_gap_on_feasible_steps": 5.438039949966671e-09,
+      "n_steps_both_slew_saturated": 3,
+      "pct_steps_both_slew_saturated": 1.875
+    },
+    "stiff_exotherm_window": {
+      "label": "stiff_exotherm_window (steps 0-24 of nominal_heatup)",
+      "n_steps": 25,
+      "rms_applied_control_difference": 8.391733067057561e-13,
+      "rms_trajectory_difference": 8.032904821397451e-14,
+      "max_abs_control_difference": 3.7836400679225335e-12,
+      "max_abs_trajectory_difference": 1.2515439318724856e-13,
+      "snn_convergence_rate_raw": 0.92,
+      "snn_convergence_rate_verified": 0.92,
+      "max_constraint_residual": 6.533154461862978e-07,
+      "n_clipped_outputs": 0,
+      "pct_clipped_outputs": 0.0,
+      "cvxpy_n_clipped_outputs": 0,
+      "n_feasible_steps_for_objective_gap": 25,
+      "pct_feasible_steps_for_objective_gap": 100.0,
+      "mean_objective_gap_on_feasible_steps": -3.162573625693566e-10,
+      "max_abs_objective_gap_on_feasible_steps": 5.438039949966671e-09,
+      "n_steps_both_slew_saturated": 3,
+      "pct_steps_both_slew_saturated": 12.0
+    }
+  },
+  "heatup_slew_saturation_caveat": {
+    "n_steps_checked": 60,
+    "n_steps_both_controllers_slew_saturated": 3,
+    "pct_steps_both_controllers_slew_saturated": 5.0,
+    "interpretation": "If this percentage is high, applied-control agreement during heat-up is expected from BOTH controllers being pinned at TA_RATE_MAX independent of QP equivalence, and must NOT be read as evidence of solver equivalence."
+  },
+  "definitions": {
+    "e_u(k)": "u_SNN_applied(k) - u_CVXPY_applied(k)",
+    "trajectory_difference(k)": "Euclidean norm of [Tc1,Tc2,Tc3,alpha1,alpha2,alpha3]_cvx minus the same vector from the SNN branch, at step k",
+    "snn_constraint_residual": "max(0, A_ineq@U_sol - b_ineq) evaluated on the mapped-back physical solution against the ORIGINAL (unconditioned) canonical QP",
+    "objective_gap_snn_vs_reference": "(f_snn - f_osqp_ref)/max(1,|f_osqp_ref|), both on SNN's own scaled arrays; computed and reported ONLY on steps where snn_constraint_residual_scaled <= feasibility_tol"
+  }
+}

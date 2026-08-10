@@ -18,7 +18,14 @@ import src.constants as const
 
 def run_closed_loop():
     plant = AutoclavePlant(initial_temp=28.0)
-    controller = MPCSolver(horizon=20, target_temp=120.0)
+    # Recommended configuration (docs/PHASE4_VALIDATION_REPORT.md Rev. 2):
+    # N=10 with soft state constraints and the pure first-order model
+    # (trust_region=False). These MUST match test_snn_closed_loop.py exactly,
+    # or the two controllers stop solving the same QP and no head-to-head
+    # number is valid. N=20 with hard constraints leaves the per-step QP
+    # infeasible through the exotherm; N=5 is degenerate (never cures).
+    controller = MPCSolver(horizon=10, target_temp=120.0,
+                            trust_region=False, soft_state_constraints=True)
     
     total_minutes = 160
     time_steps = int(total_minutes * 60 / const.TE)

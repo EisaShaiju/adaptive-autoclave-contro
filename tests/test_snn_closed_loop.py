@@ -20,7 +20,12 @@ def run_snn_closed_loop():
     print("="*60)
     
     plant = AutoclavePlant(initial_temp=28.0)
-    controller = SNNMPCSolver(horizon=20, target_temp=120.0)
+    # Recommended configuration (docs/PHASE4_VALIDATION_REPORT.md Rev. 2).
+    # These MUST match test_closed_loop.py exactly, or the two controllers stop
+    # solving the same QP and no head-to-head number is valid.
+    controller = SNNMPCSolver(horizon=10, target_temp=120.0,
+                               trust_region=False, soft_state_constraints=True,
+                               k0_scale=0.1)
 
     # Storage arrays
     history_ta = []

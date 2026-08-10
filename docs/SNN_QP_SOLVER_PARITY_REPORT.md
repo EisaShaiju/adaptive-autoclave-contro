@@ -1,5 +1,28 @@
 # SNN-QP Solver Parity — Engineering Report
 
+> ## ⚠️ SUPERSEDED — historical record only
+>
+> This report describes the state of the work **before** the Phase-4 validation
+> pass. Its central "on par / equivalent" framing and its metrics table
+> (13.12 °C vs 10.82 °C etc.) **do not reflect the current code or the current
+> conclusion**, for three reasons established later:
+>
+> 1. The two controllers were **not solving the same QP** when these numbers were
+>    taken — the SNN's condensed prediction used a one-step-shifted state window
+>    (`s=i+1`), and its prediction model was clamped (`trust_region=True`) while
+>    the baseline's was not.
+> 2. The head-to-head numbers came from two **independently-run, non-step-aligned
+>    scripts** with different disturbance-injection conventions.
+> 3. No per-step feasibility or convergence criterion was evaluated, so "on par"
+>    rested on aggregate closed-loop metrics alone.
+>
+> **The current, authoritative document is
+> [`PHASE4_VALIDATION_REPORT.md`](PHASE4_VALIDATION_REPORT.md) (Revision 2)**,
+> whose conclusion is *"same QP, but the SNN-QP does not reliably converge."*
+> This file is retained because its diagnosis of the two original bugs (the
+> pure-Python backend and the `Ap` shrink) and its kinetics verification remain
+> valid and are still cited.
+
 **Branch:** `fix/snn-qp-solver-parity`
 **Scope:** make the neuromorphic SNN-QP controller a rigorous, fair drop-in for the CVXPY/OSQP MPC baseline, verify the plant model against the reference paper, and add tooling to read the reference PDFs.
 
