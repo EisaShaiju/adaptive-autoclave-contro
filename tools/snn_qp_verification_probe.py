@@ -1,6 +1,6 @@
 """
 snn_qp_verification_probe.py
-Diagnostic-only probe implementing the `snn-qp-verification` skill's
+Diagnostic-only probe implementing the verification protocol's
 reference-solver harness. Does NOT modify src/dynamics.py, src/constants.py,
 src/plant_simulator.py, or src/snn_mpc_controller.py -- it drives the live SNN
 closed loop and, at representative steps, calls the SNNMPCSolver instance's
@@ -128,7 +128,7 @@ def main():
         })
 
     print("\n" + "=" * 130)
-    print("SNN-QP REFERENCE-SOLVER CROSS-CHECK (snn-qp-verification skill)")
+    print("SNN-QP REFERENCE-SOLVER CROSS-CHECK (docs/PHASE4_VALIDATION_REPORT.md §5)")
     print("=" * 130)
     header = (f"{'step':<14}{'k':>5}{'rho(Ap)':>9}{'u0_snn':>10}{'u0_osqp_ref':>13}"
               f"{'applied_gap':>13}{'primal_resid':>13}{'obj_gap':>12}{'converged':>11}"
@@ -149,7 +149,7 @@ def main():
     print("flags whether the raw solver iterate itself violates feasibility_tol (1e-2)")
     print("BEFORE the downstream output-clip safety filter. applied_gap is the number")
     print("that determines closed-loop behavior; converged/obj_gap explain why it")
-    print("does or doesn't hold (see snn-qp-verification skill).")
+    print("does or doesn't hold (see docs/PHASE4_VALIDATION_REPORT.md §5).")
     print("=" * 130)
 
 

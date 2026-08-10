@@ -1,7 +1,7 @@
 """
 final_controlled_comparison.py
-Final controlled closed-loop comparison, per the `closed-loop-equivalence` and
-`experiment-reproducibility` skills. One shared harness drives BOTH
+Final controlled closed-loop comparison (see docs/PHASE4_VALIDATION_REPORT.md
+§2 for the protocol). One shared harness drives BOTH
 controllers against identical initial state, plant parameters, reference
 trajectory, disturbance schedule (single, stated convention -- disturbance
 BEFORE control-compute, applied identically to both branches), sampling time,
@@ -148,7 +148,7 @@ def capture_provenance():
         },
         "disturbance_convention": "disturbance-before-compute: injected into both plants identically, "
                                    "BEFORE either controller reads state / computes control, at the same "
-                                   "step index -- per the closed-loop-equivalence skill's prescribed pattern.",
+                                   "step index, so both controllers react to identical information.",
         "generated_at": datetime.now().isoformat(timespec="seconds"),
     }
 
@@ -563,9 +563,9 @@ def write_report_md(out_dir, provenance, m_nom, m_dist, m_stiff,
         f"the same sampling time (TE={provenance['sampling_time_TE_seconds']}s), the same physical "
         "constraints, and the same canonical per-step QP construction (`src/qp_builder.py`) -- the only "
         "permitted divergence is the `trust_region` flag baked into each controller's own `Ap,Bp` "
-        "(documented, see docs/PHASE4_VALIDATION_REPORT.md). Disturbance convention: "
+        "(documented in docs/PHASE4_VALIDATION_REPORT.md). Disturbance convention: "
         "**disturbance-before-compute**, applied "
-        "identically to both plants at the same step index, per the `closed-loop-equivalence` skill.",
+        "identically to both plants at the same step index, so both controllers react to identical information.",
         "",
         "Both controllers' per-step solves are reimplemented here using the same public building blocks "
         "(`build_qp`, `_condition` for SNN, identical OSQP/SNNSolver calls) each production method uses -- "

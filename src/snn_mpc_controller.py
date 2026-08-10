@@ -135,7 +135,7 @@ class SNNMPCSolver:
         """Build this step's canonical QP via the shared condensation path
         (src/qp_builder.py) -- the SAME construction the CVXPY adapter uses,
         so both controllers solve numerically identical (H, f, A_ineq, b_ineq)
-        given the same (Ap, Bp, x0, u_prev). See qp-contract skill.
+        given the same (Ap, Bp, x0, u_prev). See docs/PHASE4_VALIDATION_REPORT.md §3.
 
         The linearized Ap is used as-is (trust_region=True bounds only the
         exotherm Jacobian terms feeding into it, in src/dynamics.py -- this

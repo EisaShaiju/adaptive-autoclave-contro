@@ -1,6 +1,6 @@
 """
 qp_parity_probe.py
-Diagnostic-only probe implementing the `model-parity` skill's window-derivation
+Diagnostic-only probe implementing the window-derivation
 check. Does NOT modify src/dynamics.py, src/constants.py, src/plant_simulator.py,
 or either controller. Read-only with respect to the shipped code; it drives the
 live CVXPY closed loop, then independently re-derives the condensed dense QP
@@ -153,7 +153,7 @@ def main():
     }
 
     print("\n" + "=" * 100)
-    print("WINDOW-DERIVATION PROBE (model-parity skill)")
+    print("WINDOW-DERIVATION PROBE (docs/PHASE4_VALIDATION_REPORT.md §3)")
     print("=" * 100)
     header = f"{'step':<14}{'k':>5}{'rho(Ap)':>10}{'u0_live_cvxpy':>16}{'u0_s=i_OSQP':>14}{'u0_s=i+1_OSQP':>16}{'|live-s=i|':>12}{'|live-s=i+1|':>14}{'status_i':>10}{'status_i+1':>12}"
     print(header)

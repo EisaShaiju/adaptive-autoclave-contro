@@ -1,6 +1,6 @@
 {
-  "convention": "disturbance-before-compute (closed-loop-equivalence skill pattern)",
-  "note_on_fingerprints": "qp_fingerprint_cvx hashes (Ap,Bp,x0,u_prev) [fully determines the CVXPY symbolic QP]; qp_fingerprint_snn hashes build_dense_qp's raw (H,g,C,d). These are each controller's own natural representation, not a cross-controller canonical form (see qp-contract skill's 'Required output' for what a full canonical extractor would additionally need).",
+  "convention": "disturbance-before-compute (disturbance applied identically to both branches)",
+  "note_on_fingerprints": "qp_fingerprint_cvx hashes (Ap,Bp,x0,u_prev) [fully determines the CVXPY symbolic QP]; qp_fingerprint_snn hashes build_dense_qp's raw (H,g,C,d). These are each controller's own natural representation, not a cross-controller canonical form (a full canonical extractor would additionally need the scaling metadata).",
   "horizon": 20,
   "target_temp": 120.0,
   "time_steps": 160,

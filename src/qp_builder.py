@@ -36,10 +36,10 @@ in scaled vector space" (see snn_mpc_controller.py history), so both adapters
 route ALL constraints through the same A_ineq/b_ineq -- lower_bound/upper_bound
 on CanonicalQP are +-inf and exist only as documented metadata.
 
-`trust_region` remains the one documented, permitted divergence between the
-two controllers (see src/dynamics.py) -- it is accepted as an input (baked
-into the caller's Ap, Bp) and recorded in `linearization`, never silently
-re-derived here.
+`trust_region` is accepted as an input (it is already baked into the caller's
+Ap, Bp by src/dynamics.linearize) and recorded in `linearization`; it is never
+re-derived here. It defaults to False on both controllers, so the
+model-identical configuration is the default.
 """
 from dataclasses import dataclass
 import hashlib
@@ -69,7 +69,7 @@ class CanonicalQP:
     n_slacks: int = 0      # remaining entries (if any) are gradient-constraint slacks
 
     def fingerprint(self, decimals=8):
-        """Deterministic identifier for this QP instance (qp-contract skill)."""
+        """Deterministic identifier for this QP instance (see docs/PHASE4_VALIDATION_REPORT.md §3)."""
         blob = b"".join(
             np.round(a, decimals).tobytes()
             for a in (self.H, self.f, self.A_ineq, self.b_ineq)
@@ -82,7 +82,7 @@ def build_canonical_qp(Ap, Bp, x0, u_prev, N, Q_diag, R_val, S_val, target_temp,
                         slack_weight_quad=1.0e2, slack_weight_lin=1.0e3):
     """Build the canonical dense QP shared by both controllers.
 
-    Parameters mirror the ingredients table in the model-parity skill: Ap, Bp
+    Parameters (the full set that determines the QP): Ap, Bp
     (from src.dynamics.linearize), x0 (current 10-vector plant state), u_prev
     (previous applied Ta), N (horizon), Q_diag/R_val/S_val (cost weights),
     target_temp, and trust_region (recorded, not re-derived -- caller already

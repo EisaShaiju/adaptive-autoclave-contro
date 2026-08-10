@@ -1,7 +1,7 @@
 """
 snn_solve_instrumentation.py
-Instrumentation harness for the SNN-QP solver, per the `snn-qp-verification`
-skill. Does NOT modify snn_opt's solver internals, SNNMPCSolver's _condition,
+Instrumentation harness for the SNN-QP solver (see
+docs/PHASE4_VALIDATION_REPORT.md §5). Does NOT modify snn_opt's solver internals, SNNMPCSolver's _condition,
 or any update/projection equation -- it wraps existing public entry points
 (SNNMPCSolver.build_qp, SNNMPCSolver._condition, snn_opt.SNNSolver.solve) and
 independently recomputes every diagnostic from the returned SolverResult
@@ -19,7 +19,7 @@ Two FIXED, deterministic test states (no RNG anywhere in this repo):
 Each test case is solved from a COLD start (U_warm=None-equivalent), NOT the
 receding-horizon warm start used in the live closed loop, so results are a
 reproducible, isolated unit test rather than a mid-trajectory snapshot (see
-experiment-reproducibility skill's warning on this exact pitfall).
+docs/PHASE4_VALIDATION_REPORT.md §2 for why this matters).
 
 Usage:
     PYTHONIOENCODING=utf-8 MPLBACKEND=Agg .venv/Scripts/python.exe tools/snn_solve_instrumentation.py

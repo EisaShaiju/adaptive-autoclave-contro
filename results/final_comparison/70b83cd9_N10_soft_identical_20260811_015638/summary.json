@@ -4,10 +4,6 @@
     "git_working_tree_dirty_files": [
       "M src/mpc_cvxpy_controller.py",
       " M src/snn_mpc_controller.py",
-      "?? .claude/",
-      "?? CLAUDE.md",
-      "?? docs/PHASE4_VALIDATION_REPORT.md",
-      "?? implementation-notes.md",
       "?? results/",
       "?? src/dynamics.py",
       "?? src/qp_builder.py",
@@ -88,7 +84,7 @@
         "feasibility_tol": 0.01
       }
     },
-    "disturbance_convention": "disturbance-before-compute: injected into both plants identically, BEFORE either controller reads state / computes control, at the same step index -- per the closed-loop-equivalence skill's prescribed pattern.",
+    "disturbance_convention": "disturbance-before-compute: injected into both plants identically, BEFORE either controller reads state / computes control, at the same step index -- per the docs/PHASE4_VALIDATION_REPORT.md §2's prescribed pattern.",
     "generated_at": "2026-08-11T01:55:56",
     "shared_configuration": {
       "trust_region": false,
