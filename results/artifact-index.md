@@ -8,6 +8,31 @@ file.
 Regenerate everything with `PYTHONIOENCODING=utf-8 MPLBACKEND=Agg
 .venv/Scripts/python.exe tools/<script>`.
 
+## Commit-hash translation (history rewrite, 2026-08-22)
+
+Repository history was rewritten on 2026-08-22 to remove local working-notes
+references that were never meant to be published. **No tracked file content
+changed at either branch tip** — the tip trees are byte-identical before and
+after (`8452cf4e` on `snn-qp-baseline-parity`, `931dc73f` on `main`) — but every
+commit hash changed. Artifact directory names and the `git_commit` field inside
+each `summary.json` therefore record **pre-rewrite** hashes. Translate with:
+
+| recorded (pre-rewrite) | current | commit |
+|---|---|---|
+| `d80ccb05` | `139c73bb` | fix(docs): typeset equations properly in the PDF build |
+| `f1b1d8da` | `98a9cb9e` | Phase-4 closure |
+| `1dc59a13` | `1d24b1dd` | docs: add engineering report for the SNN-QP parity work |
+| `4c06918f` | `a174496c` | Phase-4 validation |
+| `8e31825f` | `aa679aa0` | docs: add PDF build of the technical report |
+| `c82cf72f` | `0226d36e` | chore: restore `.gitignore` |
+
+**`70b83cd9_*` directories name a commit that was already unreachable** *before*
+the rewrite — it is a superseded pre-amend version of `1dc59a13`, present as a
+dangling object in the old repository but not on any branch. Those artifacts
+predate the current results and are retained only for the horizon sweep cited in
+§7; read them as "generated around the engineering-report commit", not as
+pointing at a resolvable hash.
+
 | Reported quantity | Where cited | Artifact | Generator |
 |---|---|---|---|
 | Canonical QP bit-identity (both controllers) | §3, model-parity invariant | `qp_parity_diagnostics.json` | `qp_parity_probe.py` |
