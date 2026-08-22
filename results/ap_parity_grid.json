@@ -1,0 +1,91 @@
+{
+  "git_commit": "d80ccb058a93e9eaf06c87c6ef9a36ce6d5bde29",
+  "quantity": "max|Ap(trust_region=False) - Ap(trust_region=True)|",
+  "why": "Persists the A-matrix difference behind the model-parity invariant and quoted in docs/SNN_MPC_TECHNICAL_REPORT.md, which previously existed only as prose. delta Ap is a property of the (T, alpha) point where the Jacobian is evaluated -- NOT of a trajectory.",
+  "benign_point": {
+    "T_degC": 40.0,
+    "alpha": 0.01,
+    "max_abs_delta_Ap": 0.00013958097999622332
+  },
+  "grid": {
+    "T_degC_range": [
+      20.0,
+      220.0
+    ],
+    "alpha_range": [
+      0.01,
+      0.99
+    ],
+    "peak": {
+      "T_degC": 220.0,
+      "alpha": 0.01,
+      "max_abs_delta_Ap": 21310458.14519587
+    },
+    "points_near_quoted_1851": [
+      {
+        "T_degC": 135.0,
+        "alpha": 0.04,
+        "max_abs_delta_Ap": 1939.1188254438387
+      },
+      {
+        "T_degC": 140.0,
+        "alpha": 0.09,
+        "max_abs_delta_Ap": 1808.620707598923
+      },
+      {
+        "T_degC": 145.0,
+        "alpha": 0.14,
+        "max_abs_delta_Ap": 1812.3442131701197
+      },
+      {
+        "T_degC": 145.0,
+        "alpha": 0.61,
+        "max_abs_delta_Ap": 1760.8311825489945
+      },
+      {
+        "T_degC": 145.0,
+        "alpha": 0.62,
+        "max_abs_delta_Ap": 1775.3850256300943
+      },
+      {
+        "T_degC": 145.0,
+        "alpha": 0.63,
+        "max_abs_delta_Ap": 1788.293028205143
+      },
+      {
+        "T_degC": 145.0,
+        "alpha": 0.64,
+        "max_abs_delta_Ap": 1799.5534958517767
+      },
+      {
+        "T_degC": 145.0,
+        "alpha": 0.65,
+        "max_abs_delta_Ap": 1809.1618626484008
+      },
+      {
+        "T_degC": 145.0,
+        "alpha": 0.66,
+        "max_abs_delta_Ap": 1817.1105951317884
+      },
+      {
+        "T_degC": 145.0,
+        "alpha": 0.67,
+        "max_abs_delta_Ap": 1823.389068572215
+      },
+      {
+        "T_degC": 145.0,
+        "alpha": 0.68,
+        "max_abs_delta_Ap": 1827.9834124226234
+      },
+      {
+        "T_degC": 145.0,
+        "alpha": 0.6900000000000001,
+        "max_abs_delta_Ap": 1830.8763209982417
+      }
+    ]
+  },
+  "trajectory_comparison": {
+    "source": "results/qp_parity_diagnostics.json",
+    "note": "A live CVXPY closed-loop rollout reaches only ~76 because the controller brakes the exotherm and never visits the grid's most extreme (T, alpha) region. Not a contradiction with the grid peak; a different question."
+  }
+}

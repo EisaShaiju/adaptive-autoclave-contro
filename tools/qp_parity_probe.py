@@ -11,6 +11,8 @@ Usage:
     PYTHONIOENCODING=utf-8 MPLBACKEND=Agg .venv/Scripts/python.exe tools/qp_parity_probe.py
 """
 from pathlib import Path
+import json
+import subprocess
 import sys
 
 import numpy as np
@@ -125,13 +127,14 @@ def main():
         avg_T = np.mean(x0[0:3])
         avg_a = np.mean(x0[7:10])
         Ap, Bp = linearize(avg_T, avg_a, trust_region=False)
+        Ap_tr, _ = linearize(avg_T, avg_a, trust_region=True)  # for the ΔAp parity diff below
         rho = np.max(np.abs(np.linalg.eigvals(Ap)))
 
         current_Ta, _ = controller.compute_control_action(x0, u_prev)
         u0_live = current_Ta
 
         trajectory.append({"k": k, "x0": x0, "u_prev": u_prev, "Ap": Ap,
-                            "Bp": Bp, "rho": rho, "u0_live": u0_live})
+                            "Ap_tr": Ap_tr, "Bp": Bp, "rho": rho, "u0_live": u0_live})
 
         if k == 60:
             plant.T_comp -= 15.0
@@ -194,6 +197,41 @@ def main():
     print("is the mismatch. Both windows can look 'plausible' individually --")
     print("only this comparison against the live CVXPY solve localizes it.")
     print("=" * 100)
+
+    # ΔAp parity diff: trust_region=True vs False, over the same trajectory.
+    # This is the max|ΔAp| figure behind the model-parity invariant (trust_region
+    # must be set identically on both controllers) -- previously console-only;
+    # persisted here so the number has a file behind it.
+    ap_diffs = [float(np.max(np.abs(t["Ap"] - t["Ap_tr"]))) for t in trajectory]
+    peak_k = int(np.argmax(ap_diffs))
+    print(f"\nΔAp parity (trust_region=True vs False), over {time_steps} steps:")
+    print(f"  max|ΔAp| = {ap_diffs[peak_k]:.4f} at k={peak_k} "
+          f"(rho(Ap) there = {trajectory[peak_k]['rho']:.4f})")
+
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=PROJECT_ROOT).decode().strip()
+    except Exception:
+        commit = "unknown"
+
+    out = {
+        "git_commit": commit,
+        "horizon": N,
+        "note": ("off_by_one_deltas reproduces the s=i vs s=i+1 window-derivation "
+                 "check from this script's docstring; ap_parity_diff reproduces "
+                 "the trust_region True-vs-False max|ΔAp| figure behind the "
+                 "model-parity invariant. Both were previously console-only."),
+        "off_by_one_deltas": results,
+        "ap_parity_diff": {
+            "per_step_max_abs_delta": ap_diffs,
+            "peak_k": peak_k,
+            "peak_max_abs_delta": ap_diffs[peak_k],
+            "peak_rho_Ap": float(trajectory[peak_k]["rho"]),
+        },
+    }
+    dest = PROJECT_ROOT / "results" / "qp_parity_diagnostics.json"
+    dest.write_text(json.dumps(out, indent=2), encoding="utf-8")
+    print(f"\nwrote {dest}")
 
     return results
 

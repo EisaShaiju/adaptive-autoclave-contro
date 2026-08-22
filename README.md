@@ -8,7 +8,9 @@
 ## Overview
 This repository contains the simulation environment and control architecture for optimizing the autoclave curing process of thick-sectioned composite laminates. The project replaces unmanaged open-loop curing cycles with real-time closed-loop Model Predictive Control (MPC), and asks whether an event-driven Spiking Neural Network (SNN) solver can close the *same* MPC loop.
 
-> **Current status of that question.** The two controllers now provably receive the **same per-step QP** (bit-identical arrays from one shared builder, identical prediction model). On the closed loop their applied controls agree to **0.714 °C RMS**. But the SNN's formal convergence criterion is met on **0 %** of steps at any horizon that actually cures the part, and ~13 % of applied moves still come from a downstream safety clip. The honest verdict is therefore **"same QP, but the SNN-QP does not reliably converge"** — *not* equivalence. Full evidence, definitions, and limitations: **[`docs/PHASE4_VALIDATION_REPORT.md`](docs/PHASE4_VALIDATION_REPORT.md) (Revision 2)**.
+> **Current status of that question.** The two controllers provably receive the **same per-step QP** (bit-identical arrays from one shared builder, identical prediction model). On the closed loop their applied controls agree to **0.707 °C RMS**, every step is now feasible, and the SNN's formal convergence criterion is met on **51.3 %** of nominal steps — but only **22.6 %** inside the stiff exotherm window, and **0 %** at N=20, where the certificate fails by 113×. About **3.8 %** of applied moves (12.9 % in the stiff window) still come from a downstream safety clip. The honest verdict is **"same QP; feasible everywhere, converges on a substantial fraction of steps, but not reliably and not at the long horizon"** — *not* equivalence. The full write-up is **[`docs/SNN_MPC_TECHNICAL_REPORT.pdf`](docs/SNN_MPC_TECHNICAL_REPORT.pdf)** (Revision 2); the step-by-step evidence, definitions and limitations behind it are in **[`docs/PHASE4_VALIDATION_REPORT.md`](docs/PHASE4_VALIDATION_REPORT.md)** (Revision 4), and every reported figure is mapped to its source file in [`results/artifact-index.md`](results/artifact-index.md).
+>
+> **Solver dependency.** Results above use `snn_opt` **0.6.0**, whose scale-invariant KKT certificate and projection watchdog moved formal convergence off zero for the first time. The upgrade was **not** a drop-in — two silent configuration traps are documented in §5.3 of the report, one of which stops the part curing while every other metric still looks plausible. As an independent check on this project's central finding, 0.6.0 rejects the hard-form stiff QP by naming **constraint row 82** — exactly the row derived analytically in §4.1, found independently upstream.
 
 The core physical plant is modeled based on the highly non-linear Arrhenius curing kinetics and 1D spatial heat transfer dynamics detailed in Dufour et al. (2004).
 
@@ -36,6 +38,10 @@ This research is divided into four main phases:
   - Unified both controllers onto **one canonical QP builder** (`src/qp_builder.py`) — bit-identical `H, f, A_ineq, b_ineq` given identical inputs — and made the prediction model identical by default.
   - Found the hard-constrained per-step QP is **infeasible at stiff exotherm steps** (OSQP reports `infeasible` on 12/12 hard configurations swept): the solver was being asked to find a feasible point of an empty set. Softening the predicted-state rows fixes it.
   - Diagnosed the residual non-convergence as `snn_opt`'s **absolute** projected-gradient tolerance on a problem whose gradient scale is ~1e10 — at a short horizon the SNN provably reaches the optimum (`u₀` to 0.0005 °C, relative objective −5.4e−8).
+- [x] **Phase 4c: Algebraic infeasibility proof + solver upgrade** (Revision 4)
+  - Proved the stiff-step infeasibility **exactly** rather than inferring it: the `k=0` gradient-constraint row is the *algebraic zero vector* for every state (`x₀` is pinned, so no future control can affect it), and rows `k=2,3,4` pair that with a negative RHS — `0 ≤ −225`, unsatisfiable for every `z`. No rescaling can repair a zero row.
+  - Resolved the long-standing `n_projections = 0` anomaly as the **same** mechanism: the projector's degenerate-row guard skips those rows without incrementing its counter, so it re-selects the same dead row for all 8000 iterations.
+  - Upgraded `snn_opt` 0.4.0 → **0.6.0**: formal convergence **0 % → 22.6–51.3 %**, all steps feasible, constraint residual down five orders, clipping down 3.5×, solve time down ~2.3×. Confirmed the pre-registered prediction that N=20 would *still* not converge.
 
 ## Head-to-Head: SNN-QP vs CVXPY/OSQP
 
@@ -45,30 +51,36 @@ Both controllers driven by **one shared harness** — same initial state, same p
 
 | Controller | Max Overshoot | Peak Cure Gradient | Gradient Violations | Compute/step |
 |---|---|---|---|---|
-| CVXPY / OSQP | 13.77 °C | 0.3445 Δα | 2 | ~5.6 ms |
-| **SNN-QP (`snn_opt`)** | **13.24 °C** | **0.3418 Δα** | **2** | **~115 ms** |
+| CVXPY / OSQP | 13.77 °C | 0.3445 Δα | 2 | ~5.5 ms |
+| **SNN-QP (`snn_opt` 0.6.0)** | **13.23 °C** | **0.3417 Δα** | **2** | **~49 ms** |
 
-Both reach full uniform cure (final α = 1.000) with zero actuator-limit violations.
+Both reach full uniform cure (final α ≥ 0.9998 at every node) with zero actuator-limit violations. This cure gate is recorded per scenario in `summary.json` → `cure_gate`, because several failure modes in this project leave every other metric looking plausible while the part never cures.
 
 **2. Solver agreement — the numbers that actually test the claim:**
 
+Measured with `snn_opt` 0.6.0 (see *Solver dependency* below); 0.4.0 values in parentheses where they differ materially.
+
 | Metric | Nominal heat-up | Disturbance @ 60 | Stiff exotherm window |
 |---|---|---|---|
-| RMS applied-control difference | **0.714 °C** | 0.791 °C | 0.559 °C |
-| RMS closed-loop trajectory difference | **0.249** | 0.279 | 0.414 |
-| Max abs. control difference | 3.57 °C | 3.95 °C | 0.65 °C |
-| SNN max constraint residual | 1.55 | 2.07 | 1.55 |
-| **SNN formally converged** | **0 %** | **0 %** | **0 %** |
-| Steps feasible enough to score objective gap | 48.1 % | 58.8 % | 45.2 % |
-| Mean objective gap (feasible steps only) | 1.05e−4 | 1.22e−4 | 5.02e−5 |
-| Applied moves corrected by the safety clip | 13.1 % | 15.0 % | 29.0 % |
+| RMS applied-control difference | **0.707 °C** | 0.793 °C | 0.565 °C |
+| RMS closed-loop trajectory difference | **0.251** | 0.286 | 0.418 |
+| Max abs. control difference | 3.52 °C | 3.95 °C | 0.66 °C |
+| SNN max constraint residual | **3.46e−5** (1.55) | 1.92e−5 (2.07) | 1.92e−5 (1.55) |
+| **SNN formally converged** | **51.3 %** (0 %) | **46.9 %** (0 %) | **22.6 %** (0 %) |
+| Steps feasible enough to score objective gap | **100 %** (48.1 %) | 100 % (58.8 %) | 100 % (45.2 %) |
+| Mean objective gap (feasible steps only) | 6.72e−4 † | 2.65e−3 † | 2.56e−3 † |
+| Applied moves corrected by the safety clip | **3.8 %** (13.1 %) | 1.3 % (15.0 %) | **12.9 %** (29.0 %) |
+| Median solve time / ratio vs CVXPY | **48.7 ms — 8.9×** (113.8 — 19.8×) | 74.4 ms — 8.7× | 27.2 ms — 5.0× |
 
-Against the pre-validation configuration (mismatched model, hard constraints, N=20): RMS control difference **16.005 → 0.714 °C** (−96 %), max **57.70 → 3.57 °C** (−94 %), max constraint residual **1.85e5 → 1.55** (five orders of magnitude).
+† Not comparable to the 0.4.0 figures (1.05e−4 / 1.22e−4 / 5.02e−5), which averaged over only the ~half of steps that version could grade. Restricted to the **same** steps, 0.6.0 gives 1.215e−4 vs 0.4.0's 1.201e−4 — statistically identical. Coverage doubled; accuracy did not degrade.
+
+Against the pre-validation configuration (mismatched model, hard constraints, N=20): RMS control difference **16.005 → 0.707 °C** (−96 %), max **57.70 → 3.52 °C** (−94 %), max constraint residual **1.85e5 → 3.5e−5** (ten orders of magnitude).
 
 **Caveats stated up front, not buried:**
-- **Formal convergence is 0 %.** The applied controls agree closely and the objective gap is small where measurable, but the solver never satisfies its own stopping criterion at a usable horizon. This is why the verdict is not "equivalent".
+- **Convergence is partial, not achieved — and worst where it matters.** 22.6 % in the stiff exotherm window, the regime the controller exists to handle. At the long horizon (N=20) the scale-invariant certificate still fails by a factor of **113** — a prediction recorded *before* the upgrade and then confirmed. This is why the verdict is still not "equivalent".
+- **The SNN is ~8.9× slower than OSQP on CPU** (48.7 vs 5.5 ms median, nominal). Improved from 19.8×, but no computational advantage is claimed anywhere. The SNN's actual case rests on neuromorphic/FPGA execution, which remains deferred. Timing is the one metric here that is not bit-reproducible — absolute medians move with machine load, the *ratio* holds to a few percent, so read the ratio.
 - **41.7 % of heat-up steps have *both* controllers pinned at the 4 °C/min slew limit** (77.4 % inside the stiff window). Agreement on those steps reflects a shared actuator limit, not solver agreement, and is excluded from the claim.
-- **Horizon is load-bearing.** `N=5` gives apparently perfect agreement (0.000 °C RMS, 98.8 % formal convergence) and is **degenerate** — it drives the oven to its 10 °C floor and the part never cures (α = 0.000). Always check final α before reading agreement as success.
+- **Horizon is load-bearing.** `N=5` gives apparently perfect agreement (0.000 °C RMS, 98.8 % formal convergence) and is **degenerate** — it drives the oven to its 10 °C floor and the part never cures (α ≤ 1.0e−5, i.e. below reporting precision but not identically zero). Always check final α before reading agreement as success.
 
 ![SNN-QP vs CVXPY Overlay](assets/snn_vs_cvxpy_overlay.png)
 
@@ -90,7 +102,7 @@ With the CVXPY MPC active, the solver's prediction horizon anticipates the expon
 ### Phase 4: Closed-Loop SNN-MPC Active Control
 In the final neuromorphic implementation, the CVXPY engine is entirely replaced by the Spiking Neural Network solver. The SNN executes the same control strategy as the baseline: it heats the autoclave along the maximum physical speed limit (4°C/min), rejects the 15°C thermal disturbance injected at t=60, and brakes to catch the exponential exotherm.
 
-The SNN-QP is handed the **identical** per-step QP as the baseline (verified bit-identical, `tests/test_qp_parity.py`), and reaches full uniform cure with an overshoot of 13.24 °C against the baseline's 13.77 °C. That closeness is a measured agreement of the *applied control* (0.714 °C RMS), **not** a demonstration that the solver converged — its formal convergence criterion is met on 0 % of steps, and ~13 % of applied moves are corrected by a downstream safety clip. See [`docs/PHASE4_VALIDATION_REPORT.md`](docs/PHASE4_VALIDATION_REPORT.md) for what is and is not established.
+The SNN-QP is handed the **identical** per-step QP as the baseline (verified bit-identical, `tests/test_qp_parity.py`), and reaches full uniform cure with an overshoot of 13.23 °C against the baseline's 13.77 °C. That closeness is a measured agreement of the *applied control* (0.707 °C RMS), **not** a demonstration that the solver converged — its formal criterion is met on 51.3 % of nominal steps but only 22.6 % in the stiff exotherm window, and 3.8 % of applied moves are still corrected by a downstream safety clip. See [`docs/PHASE4_VALIDATION_REPORT.md`](docs/PHASE4_VALIDATION_REPORT.md) for what is and is not established.
 
 ![SNN-MPC Performance](assets/snn_closedloop_test.png)
 
@@ -144,7 +156,9 @@ scripts rely on the matching constructor arguments at the top of each `run_*()`.
 ├── ref_docs/
 │   └── dufour mpc.pdf                  # Core mathematical reference literature
 ├── docs/
-│   ├── PHASE4_VALIDATION_REPORT.md     # ** AUTHORITATIVE ** validation report (Rev. 2)
+│   ├── SNN_MPC_TECHNICAL_REPORT.md     # ** THE PAPER ** full technical report (Rev. 2)
+│   ├── SNN_MPC_TECHNICAL_REPORT.pdf    #    typeset build of the above
+│   ├── PHASE4_VALIDATION_REPORT.md     # ** THE EVIDENCE ** step-by-step validation (Rev. 4)
 │   └── SNN_QP_SOLVER_PARITY_REPORT.md  # Superseded earlier report, kept for history
 ├── src/
 │   ├── constants.py                    # Material properties, spatial limits, and tuning weights
@@ -160,6 +174,13 @@ scripts rely on the matching constructor arguments at the top of each `run_*()`.
 │   └── test_qp_parity.py               # Proves both adapters receive identical QPs
 ├── tools/
 │   ├── final_controlled_comparison.py  # The controlled head-to-head harness
+│   ├── feasibility_certificate_probe.py    # Solver-independent slack LP: is the set empty?
+│   ├── gradient_row_infeasibility_probe.py # The exact zero-normal-row infeasibility proof
+│   ├── kkt_certificate_probe.py            # Legacy vs scale-invariant certificate, by horizon
+│   ├── snn_opt_regression_baseline.py      # Before/after fingerprint for a dependency change
+│   ├── slack_weight_sensitivity.py         # Is the answer an artifact of the penalty weight?
+│   ├── ap_parity_grid_probe.py             # max|dAp| over an operating-point grid
+│   ├── md_to_paper_pdf.py                  # Markdown report -> typeset PDF
 │   ├── conditioning_sweep.py           # trust_region x soft x horizon x step-size sweep
 │   ├── optimum_agreement_probe.py      # SNN answer vs. known optimum
 │   ├── convergence_blocker_probe.py    # Which convergence criterion blocks, and why

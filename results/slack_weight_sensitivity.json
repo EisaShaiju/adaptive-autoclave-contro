@@ -1,0 +1,252 @@
+{
+  "git_commit": "d80ccb058a93e9eaf06c87c6ef9a36ce6d5bde29",
+  "horizon": 10,
+  "shipped_defaults": {
+    "slack_weight_lin": 1000.0,
+    "slack_weight_quad": 100.0
+  },
+  "benign_state": {
+    "k": 10,
+    "rho_Ap": 1.0000009143124624
+  },
+  "stiff_state": {
+    "k": 87,
+    "rho_Ap": 2.4927724736462187
+  },
+  "sweeps": {
+    "benign": {
+      "lin_sweep": [
+        {
+          "slack_weight_lin": 10.0,
+          "slack_weight_quad": 100.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 1.4203631076369839e-09,
+          "feasible_set_nonempty": true,
+          "u0": 72.0,
+          "max_slack_at_optimum": 1.2619893817558233e-29,
+          "sum_slack_at_optimum": 1.2619893817558233e-28
+        },
+        {
+          "slack_weight_lin": 100.0,
+          "slack_weight_quad": 100.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 1.4203631076369839e-09,
+          "feasible_set_nonempty": true,
+          "u0": 72.0,
+          "max_slack_at_optimum": 1.261952734219492e-28,
+          "sum_slack_at_optimum": 1.261952734219492e-27
+        },
+        {
+          "slack_weight_lin": 1000.0,
+          "slack_weight_quad": 100.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 1.4203631076369839e-09,
+          "feasible_set_nonempty": true,
+          "u0": 72.0,
+          "max_slack_at_optimum": 1.261747528821451e-27,
+          "sum_slack_at_optimum": 1.261747528821451e-26
+        },
+        {
+          "slack_weight_lin": 10000.0,
+          "slack_weight_quad": 100.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 1.4203631076369839e-09,
+          "feasible_set_nonempty": true,
+          "u0": 72.0,
+          "max_slack_at_optimum": 1.4142510977229853e-27,
+          "sum_slack_at_optimum": 1.4142510977229853e-26
+        },
+        {
+          "slack_weight_lin": 100000.0,
+          "slack_weight_quad": 100.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 1.4203631076369839e-09,
+          "feasible_set_nonempty": true,
+          "u0": 72.0,
+          "max_slack_at_optimum": 1.4166830137501594e-28,
+          "sum_slack_at_optimum": 1.4166830137501594e-27
+        }
+      ],
+      "quad_sweep": [
+        {
+          "slack_weight_lin": 1000.0,
+          "slack_weight_quad": 1.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 1.4203631076369839e-09,
+          "feasible_set_nonempty": true,
+          "u0": 72.0,
+          "max_slack_at_optimum": 1.2629103162051817e-27,
+          "sum_slack_at_optimum": 1.2629103162051816e-26
+        },
+        {
+          "slack_weight_lin": 1000.0,
+          "slack_weight_quad": 10.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 1.4203631076369839e-09,
+          "feasible_set_nonempty": true,
+          "u0": 72.0,
+          "max_slack_at_optimum": 1.2623483784465494e-27,
+          "sum_slack_at_optimum": 1.2623483784465495e-26
+        },
+        {
+          "slack_weight_lin": 1000.0,
+          "slack_weight_quad": 100.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 1.4203631076369839e-09,
+          "feasible_set_nonempty": true,
+          "u0": 72.0,
+          "max_slack_at_optimum": 1.261747528821451e-27,
+          "sum_slack_at_optimum": 1.261747528821451e-26
+        },
+        {
+          "slack_weight_lin": 1000.0,
+          "slack_weight_quad": 1000.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 1.4203631076369839e-09,
+          "feasible_set_nonempty": true,
+          "u0": 72.0,
+          "max_slack_at_optimum": 1.2588427800510856e-27,
+          "sum_slack_at_optimum": 1.2588427800510855e-26
+        },
+        {
+          "slack_weight_lin": 1000.0,
+          "slack_weight_quad": 10000.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 1.4203631076369839e-09,
+          "feasible_set_nonempty": true,
+          "u0": 72.0,
+          "max_slack_at_optimum": 2.3970645990784343e-27,
+          "sum_slack_at_optimum": 2.3970645990784342e-26
+        }
+      ],
+      "u0_spread_degC": 0.0
+    },
+    "stiff": {
+      "lin_sweep": [
+        {
+          "slack_weight_lin": 10.0,
+          "slack_weight_quad": 100.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 2.959870194284243e-07,
+          "feasible_set_nonempty": true,
+          "u0": 130.0,
+          "max_slack_at_optimum": 9142.343665233517,
+          "sum_slack_at_optimum": 16364.774857519482
+        },
+        {
+          "slack_weight_lin": 100.0,
+          "slack_weight_quad": 100.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 2.959870194284243e-07,
+          "feasible_set_nonempty": true,
+          "u0": 130.0,
+          "max_slack_at_optimum": 9142.343665233517,
+          "sum_slack_at_optimum": 16364.774857519482
+        },
+        {
+          "slack_weight_lin": 1000.0,
+          "slack_weight_quad": 100.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 2.959870194284243e-07,
+          "feasible_set_nonempty": true,
+          "u0": 130.0,
+          "max_slack_at_optimum": 9142.343665233517,
+          "sum_slack_at_optimum": 16364.774857519482
+        },
+        {
+          "slack_weight_lin": 10000.0,
+          "slack_weight_quad": 100.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 2.959870194284243e-07,
+          "feasible_set_nonempty": true,
+          "u0": 130.0,
+          "max_slack_at_optimum": 9142.343665233517,
+          "sum_slack_at_optimum": 16364.774857519482
+        },
+        {
+          "slack_weight_lin": 100000.0,
+          "slack_weight_quad": 100.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 2.959870194284243e-07,
+          "feasible_set_nonempty": true,
+          "u0": 130.0,
+          "max_slack_at_optimum": 9142.343665233517,
+          "sum_slack_at_optimum": 16364.774857519482
+        }
+      ],
+      "quad_sweep": [
+        {
+          "slack_weight_lin": 1000.0,
+          "slack_weight_quad": 1.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 2.959870194284243e-07,
+          "feasible_set_nonempty": true,
+          "u0": 130.0,
+          "max_slack_at_optimum": 9142.343665233517,
+          "sum_slack_at_optimum": 16364.774857519482
+        },
+        {
+          "slack_weight_lin": 1000.0,
+          "slack_weight_quad": 10.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 2.959870194284243e-07,
+          "feasible_set_nonempty": true,
+          "u0": 130.0,
+          "max_slack_at_optimum": 9142.343665233517,
+          "sum_slack_at_optimum": 16364.774857519482
+        },
+        {
+          "slack_weight_lin": 1000.0,
+          "slack_weight_quad": 100.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 2.959870194284243e-07,
+          "feasible_set_nonempty": true,
+          "u0": 130.0,
+          "max_slack_at_optimum": 9142.343665233517,
+          "sum_slack_at_optimum": 16364.774857519482
+        },
+        {
+          "slack_weight_lin": 1000.0,
+          "slack_weight_quad": 1000.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 2.959870194284243e-07,
+          "feasible_set_nonempty": true,
+          "u0": 129.98878148122324,
+          "max_slack_at_optimum": 9142.34377631495,
+          "sum_slack_at_optimum": 16364.774815566874
+        },
+        {
+          "slack_weight_lin": 1000.0,
+          "slack_weight_quad": 10000.0,
+          "osqp_status": "optimal",
+          "lp_status": "optimal",
+          "lp_max_slack": 2.959870194284243e-07,
+          "feasible_set_nonempty": true,
+          "u0": 129.9517686379296,
+          "max_slack_at_optimum": 9142.343204720994,
+          "sum_slack_at_optimum": 16364.774010529918
+        }
+      ],
+      "u0_spread_degC": 0.048231362070396244
+    }
+  }
+}

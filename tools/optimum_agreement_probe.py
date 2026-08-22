@@ -128,8 +128,14 @@ def main():
            f"{'obj_gap':>12}{'res_snn':>11}{'feas':>7}{'rel_pg':>11}{'flag':>7}")
     print(hdr)
     print("-" * len(hdr))
+    # k0_scale=0.5 is SNNMPCSolver's constructor default; 0.1 is the value the
+    # recommended configuration actually runs (docs/PHASE4_VALIDATION_REPORT.md
+    # section 6). Both are swept because the relative projected-gradient norm at
+    # the returned point depends on the step size -- 0.449 at k0=0.1 vs 0.670 at
+    # k0=0.5 for N=20 -- so any quoted relative norm is meaningless without its
+    # k0_scale. All three fail the 0.05 threshold at the working horizon.
     for N in (20, 10, 5):
-        for k0 in (0.1, 0.05):
+        for k0 in (0.5, 0.1, 0.05):
             r = run(state, N, k0)
             rows.append(r)
 

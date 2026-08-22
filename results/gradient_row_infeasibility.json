@@ -1,0 +1,347 @@
+{
+  "git_commit": "d80ccb058a93e9eaf06c87c6ef9a36ce6d5bde29",
+  "gradient_max": 10.0,
+  "stiff_state": {
+    "k": 84,
+    "rho_Ap": 1.5525065602018713
+  },
+  "horizon": 20,
+  "mechanism": "Gamma's block-row for k=0 is never written by the recursive loop in src/qp_builder.py (empty range for i=0), so GGamma row k=0 is EXACTLY zero for every state -- x_0 is pinned, decision-independent by construction. At this state, rows k=1..4 are also measured exactly zero (transport-delay property of Bp, not re-derived here). A row with c_j=0 and d_j>0 makes 0<=d_j false for every z: unconditional infeasibility, immune to rescaling/preconditioning/solver choice.",
+  "gradient_rows": [
+    {
+      "k": 0,
+      "sign": "+",
+      "row_index": 80,
+      "exact_zero_row": true,
+      "b_ineq": 14.438247080729099,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 0,
+      "sign": "-",
+      "row_index": 100,
+      "exact_zero_row": true,
+      "b_ineq": 5.561752919270901,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 1,
+      "sign": "+",
+      "row_index": 81,
+      "exact_zero_row": true,
+      "b_ineq": 13.238476987744086,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 1,
+      "sign": "-",
+      "row_index": 101,
+      "exact_zero_row": true,
+      "b_ineq": 6.761523012255914,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 2,
+      "sign": "+",
+      "row_index": 82,
+      "exact_zero_row": true,
+      "b_ineq": -17.67247862459973,
+      "unconditionally_infeasible": true
+    },
+    {
+      "k": 2,
+      "sign": "-",
+      "row_index": 102,
+      "exact_zero_row": true,
+      "b_ineq": 37.672478624599734,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 3,
+      "sign": "+",
+      "row_index": 83,
+      "exact_zero_row": true,
+      "b_ineq": -89.97145981922954,
+      "unconditionally_infeasible": true
+    },
+    {
+      "k": 3,
+      "sign": "-",
+      "row_index": 103,
+      "exact_zero_row": true,
+      "b_ineq": 109.97145981922954,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 4,
+      "sign": "+",
+      "row_index": 84,
+      "exact_zero_row": true,
+      "b_ineq": -225.05476270297044,
+      "unconditionally_infeasible": true
+    },
+    {
+      "k": 4,
+      "sign": "-",
+      "row_index": 104,
+      "exact_zero_row": true,
+      "b_ineq": 245.05476270297044,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 5,
+      "sign": "+",
+      "row_index": 85,
+      "exact_zero_row": false,
+      "b_ineq": -455.40940972876257,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 5,
+      "sign": "-",
+      "row_index": 105,
+      "exact_zero_row": false,
+      "b_ineq": 475.40940972876257,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 6,
+      "sign": "+",
+      "row_index": 86,
+      "exact_zero_row": false,
+      "b_ineq": -830.2166332791842,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 6,
+      "sign": "-",
+      "row_index": 106,
+      "exact_zero_row": false,
+      "b_ineq": 850.2166332791842,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 7,
+      "sign": "+",
+      "row_index": 87,
+      "exact_zero_row": false,
+      "b_ineq": -1425.172693842824,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 7,
+      "sign": "-",
+      "row_index": 107,
+      "exact_zero_row": false,
+      "b_ineq": 1445.172693842824,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 8,
+      "sign": "+",
+      "row_index": 88,
+      "exact_zero_row": false,
+      "b_ineq": -2357.8705604235884,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 8,
+      "sign": "-",
+      "row_index": 108,
+      "exact_zero_row": false,
+      "b_ineq": 2377.8705604235884,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 9,
+      "sign": "+",
+      "row_index": 89,
+      "exact_zero_row": false,
+      "b_ineq": -3811.9073476380768,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 9,
+      "sign": "-",
+      "row_index": 109,
+      "exact_zero_row": false,
+      "b_ineq": 3831.9073476380768,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 10,
+      "sign": "+",
+      "row_index": 90,
+      "exact_zero_row": false,
+      "b_ineq": -6074.622608571566,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 10,
+      "sign": "-",
+      "row_index": 110,
+      "exact_zero_row": false,
+      "b_ineq": 6094.622608571566,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 11,
+      "sign": "+",
+      "row_index": 91,
+      "exact_zero_row": false,
+      "b_ineq": -9596.160401406283,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 11,
+      "sign": "-",
+      "row_index": 111,
+      "exact_zero_row": false,
+      "b_ineq": 9616.160401406283,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 12,
+      "sign": "+",
+      "row_index": 92,
+      "exact_zero_row": false,
+      "b_ineq": -15081.886987489297,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 12,
+      "sign": "-",
+      "row_index": 112,
+      "exact_zero_row": false,
+      "b_ineq": 15101.886987489297,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 13,
+      "sign": "+",
+      "row_index": 93,
+      "exact_zero_row": false,
+      "b_ineq": -23636.991155742086,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 13,
+      "sign": "-",
+      "row_index": 113,
+      "exact_zero_row": false,
+      "b_ineq": 23656.991155742086,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 14,
+      "sign": "+",
+      "row_index": 94,
+      "exact_zero_row": false,
+      "b_ineq": -36992.730110470264,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 14,
+      "sign": "-",
+      "row_index": 114,
+      "exact_zero_row": false,
+      "b_ineq": 37012.730110470264,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 15,
+      "sign": "+",
+      "row_index": 95,
+      "exact_zero_row": false,
+      "b_ineq": -57860.43158813864,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 15,
+      "sign": "-",
+      "row_index": 115,
+      "exact_zero_row": false,
+      "b_ineq": 57880.43158813864,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 16,
+      "sign": "+",
+      "row_index": 96,
+      "exact_zero_row": false,
+      "b_ineq": -90485.41898375543,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 16,
+      "sign": "-",
+      "row_index": 116,
+      "exact_zero_row": false,
+      "b_ineq": 90505.41898375543,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 17,
+      "sign": "+",
+      "row_index": 97,
+      "exact_zero_row": false,
+      "b_ineq": -141513.80654368535,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 17,
+      "sign": "-",
+      "row_index": 117,
+      "exact_zero_row": false,
+      "b_ineq": 141533.80654368535,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 18,
+      "sign": "+",
+      "row_index": 98,
+      "exact_zero_row": false,
+      "b_ineq": -221348.93532138754,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 18,
+      "sign": "-",
+      "row_index": 118,
+      "exact_zero_row": false,
+      "b_ineq": 221368.93532138754,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 19,
+      "sign": "+",
+      "row_index": 99,
+      "exact_zero_row": false,
+      "b_ineq": -346274.1072956683,
+      "unconditionally_infeasible": false
+    },
+    {
+      "k": 19,
+      "sign": "-",
+      "row_index": 119,
+      "exact_zero_row": false,
+      "b_ineq": 346294.1072956683,
+      "unconditionally_infeasible": false
+    }
+  ],
+  "hard_form_slack_lp": {
+    "lp_status": "optimal",
+    "max_slack": 159924.3988905263
+  },
+  "soft_form_slack_lp": {
+    "lp_status": "optimal",
+    "max_slack": 2.413179944360858e-07
+  },
+  "hard_form_snn_solve": {
+    "converged": false,
+    "convergence_reason": "max_iterations",
+    "iterations_used": 8000,
+    "n_projections": 0,
+    "final_max_violation_recomputed": 2250547627029.704
+  }
+}

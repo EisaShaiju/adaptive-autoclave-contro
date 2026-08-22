@@ -1,0 +1,38 @@
+{
+  "installed_version": "0.4.0",
+  "installed_backend": "c (compiled _kernel.cp313-win_amd64.pyd) -- must not be casually replaced; see the repository's dependency-upgrade notes",
+  "upstream_repo": "https://github.com/ahkhan03/SNN_opt",
+  "upstream_latest_version": "0.6.0",
+  "checked_via": "WebFetch on README.md and CHANGELOG.md (2026-08-18); gh CLI unauthenticated in this environment, not used",
+  "relevant_changes": [
+    {
+      "version": "0.5.0",
+      "date": "2026-07-15",
+      "change": "max_projection_iters becomes a hard watchdog: exceeding it now ABORTS with projection_budget_exhausted=True, instead of silently continuing to max_iterations.",
+      "relevance": "Directly matches the saturating pathology measured in this repo: n_projections = 200.0/iteration against max_projection_iters=200, for all 8000 outer iterations, with no signal in 0.4.0 (results/feasibility_certificate.json). In 0.5.0+ this would surface immediately as projection_budget_exhausted instead of running silently to max_iterations."
+    },
+    {
+      "version": "0.5.0",
+      "change": "Constraint selection changed from raw-residual argmax to normalized-distance winner; box bounds folded into the same projection sweep as row constraints; feasibility assessment now 'joint' (rows + box) via SolverResult.joint_feasible / max_violation_rows_raw / max_distance_rows / max_violation_box.",
+      "relevance": "Potentially changes how a degenerate (exact-zero-norm) row like the k=0..4 gradient rows found in results/gradient_row_infeasibility.json is selected or reported -- not verified against this repo's QP; flagged 'potentially relevant', needs a compatibility test before adoption."
+    },
+    {
+      "version": "0.5.0",
+      "change": "New stationarity_residual field: NNLS-based KKT certificate quantifying distance from stationarity.",
+      "relevance": "directly relevant"
+    },
+    {
+      "version": "0.6.0",
+      "date": "2026-08-15",
+      "change": "converged now defaults to a scale-invariant KKT-cone certificate: r_kkt <= kkt_abs_tol + kkt_rel_tol * max(||Ax||, ||b||, ||N^T mu||), invariant to positive objective rescaling / row order / row duplication / per-row scaling. ConvergenceConfig.optimality_test selects 'kkt' (default) | 'legacy_projected_gradient' | 'none'. use_projected_gradient / proj_grad_tol deprecated as constructor-only aliases.",
+      "relevance": "directly relevant -- this is exactly the convergence-certificate defect documented for this project: the installed 0.4.0 gates convergence on an ABSOLUTE proj_grad_tol=0.05 whose measured norm spans 2.2e1 (N=5) to 1.7e10 (N=20) on this problem (results/convergence_blocker_probe.json). A relative/scale-invariant test is the correct fix in principle; adoption requires re-running the saved stiff-step QP and confirming u0/objective/primal-residual are UNCHANGED before trusting the new flag (see the dependency-upgrade regression gate, tools/snn_opt_regression_baseline.py)."
+    },
+    {
+      "version": "0.6.0",
+      "change": "SolverConfig.observe_projection_events (default off): per-row/coordinate committed projection counts.",
+      "relevance": "would have directly answered the n_projections=0 anomaly with an official instrumentation hook instead of the manual trace in tools/gradient_row_infeasibility_probe.py."
+    }
+  ],
+  "compatibility_risk": "UNVERIFIED. PyPI page did not load via WebFetch in this session; Windows wheel / compiled-backend availability for 0.5.0/0.6.0 not confirmed. An earlier repository note stated 0.4.0 'is not on the public index in the usual form' -- do not assume 0.5.0/0.6.0 installs cleanly. Any upgrade must (1) preserve or rebuild the compiled backend, (2) be tested against the saved gradient_row_infeasibility.json / feasibility_certificate.json instances before being trusted for a new head-to-head number, per the dependency-upgrade regression gate (tools/snn_opt_regression_baseline.py).",
+  "recommendation": "adopt-pending-compatibility-test — do not pip install into .venv without explicit approval; the fix targets exactly the two defects this session diagnosed (absolute proj_grad_tol scale-sensitivity; silent projection saturation), so it is worth the audit, but is a dependency change requiring confirmation, not a research action."
+}

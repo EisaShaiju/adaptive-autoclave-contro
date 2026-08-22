@@ -30,6 +30,7 @@ import sys
 import csv
 import json
 import subprocess
+import time
 from datetime import datetime
 
 import numpy as np
@@ -80,7 +81,17 @@ def make_controllers(horizon):
 # ======================================================================
 # Provenance
 # ======================================================================
-def capture_provenance():
+def capture_provenance(horizon=None):
+    """Snapshot the environment and the ACTUAL run configuration.
+
+    `horizon` must be the horizon the run really uses. Passing None falls back
+    to the module default, which is only correct for an unparameterised run --
+    an earlier version always used the default and so recorded `horizon_N: 20`
+    (and constructor-default solver settings) into runs that actually used
+    N=10 with k0_scale=0.1. The probe controllers below are therefore built
+    from the same CONFIG as the real ones.
+    """
+    horizon = HORIZON if horizon is None else horizon
     try:
         commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=PROJECT_ROOT).decode().strip()
         dirty_files = subprocess.check_output(["git", "status", "--short"], cwd=PROJECT_ROOT).decode().strip()
@@ -99,8 +110,7 @@ def capture_provenance():
     except ImportError:
         pass
 
-    ctrl_snn_probe = SNNMPCSolver(horizon=HORIZON, target_temp=TARGET_TEMP)
-    ctrl_cvx_probe = MPCSolver(horizon=HORIZON, target_temp=TARGET_TEMP)
+    ctrl_cvx_probe, ctrl_snn_probe = make_controllers(horizon)
 
     return {
         "git_commit": commit,
@@ -113,7 +123,7 @@ def capture_provenance():
         "random_seed": "N/A -- no RNG anywhere in plant/controllers (deterministic given config); "
                         "confirmed by inspection, not assumed",
         "sampling_time_TE_seconds": const.TE,
-        "horizon_N": HORIZON,
+        "horizon_N": horizon,
         "target_temp_degC": TARGET_TEMP,
         "initial_temp_degC": INITIAL_TEMP,
         "physical_constraints": {
@@ -144,6 +154,18 @@ def capture_provenance():
                 "obj_rel_tol": ctrl_snn_probe.solver_config.convergence.obj_rel_tol,
                 "proj_grad_tol": ctrl_snn_probe.solver_config.convergence.proj_grad_tol,
                 "feasibility_tol": ctrl_snn_probe.solver_config.convergence.feasibility_tol,
+                # The single field that decides what `converged` means. Passing
+                # the deprecated proj_grad_tol alias silently forces
+                # 'legacy_projected_gradient' on snn_opt >= 0.6.0, so the
+                # RESOLVED value is recorded rather than the one we intended.
+                # Absent on 0.4.x, where only the legacy test exists.
+                "optimality_test": getattr(
+                    ctrl_snn_probe.solver_config.convergence, "optimality_test",
+                    "n/a (pre-0.6.0: legacy_projected_gradient only)"),
+                "kkt_abs_tol": getattr(
+                    ctrl_snn_probe.solver_config.convergence, "kkt_abs_tol", None),
+                "kkt_rel_tol": getattr(
+                    ctrl_snn_probe.solver_config.convergence, "kkt_rel_tol", None),
             },
         },
         "disturbance_convention": "disturbance-before-compute: injected into both plants identically, "
@@ -158,12 +180,21 @@ def capture_provenance():
 # same public building blocks, zero src changes)
 # ======================================================================
 def cvxpy_step(ctrl, x0, u_prev):
+    # Timing convention (shared with snn_step): build_ms covers the canonical QP
+    # construction, solve_ms covers ONLY the solver call, total_ms is their sum.
+    # Both controllers are timed the same way, in the same process, on the same
+    # per-step sequence -- the only apples-to-apples comparison available.
+    # cp.Problem construction is counted as build, matching the SNN's
+    # OptimizationProblem/_condition setup.
+    t0 = time.perf_counter()
     qp = ctrl.build_qp(x0, u_prev)
     U = cp.Variable(qp.H.shape[0])   # N inputs, plus N slacks when softened
     prob = cp.Problem(cp.Minimize(0.5 * cp.quad_form(U, cp.psd_wrap(qp.H)) + qp.f @ U),
                        [qp.A_ineq @ U <= qp.b_ineq])
+    t_build = time.perf_counter()
     try:
         prob.solve(solver=cp.OSQP, warm_start=True)
+        t_solve = time.perf_counter()
         status = prob.status
         if U.value is None:
             u0 = float(u_prev)
@@ -172,14 +203,18 @@ def cvxpy_step(ctrl, x0, u_prev):
             u0 = float(U.value[0])
             objective = float(0.5 * U.value @ qp.H @ U.value + qp.f @ U.value)
     except Exception:
+        t_solve = time.perf_counter()
         status, u0, objective = "exception", float(u_prev), None
 
+    build_ms = (t_build - t0) * 1000.0
+    solve_ms = (t_solve - t_build) * 1000.0
     return {
         "raw_control": u0, "applied_control": u0,  # CVXPY has no separate output-clip stage
         "objective": objective, "status": status,
         "n_clipped_variables": 0,  # no clipping mechanism exists in this controller
         "rho_Ap": float(np.max(np.abs(np.linalg.eigvals(qp.linearization["Ap"])))),
         "qp_fingerprint": qp.fingerprint(),
+        "build_ms": build_ms, "solve_ms": solve_ms, "total_ms": build_ms + solve_ms,
     }
 
 
@@ -187,6 +222,10 @@ def snn_step(ctrl, x0, u_prev):
     """Mirrors SNNMPCSolver.compute_control_action exactly, including updating
     ctrl.U_warm and ctrl.n_projection_active, so a sequence of calls across a
     closed loop behaves identically to calling compute_control_action directly."""
+    # See cvxpy_step for the shared timing convention. build_ms here covers
+    # build_qp + _condition + OptimizationProblem/SNNSolver setup, i.e. the
+    # SNN's counterpart to CVXPY's build + cp.Problem construction.
+    t0 = time.perf_counter()
     qp = ctrl.build_qp(x0, u_prev)
     H_raw, g_raw, C_raw, d_raw = qp.H, qp.f, qp.A_ineq, -qp.b_ineq
     problem_raw = OptimizationProblem(A=H_raw, b=g_raw, C=C_raw, d=d_raw)
@@ -196,6 +235,7 @@ def snn_step(ctrl, x0, u_prev):
     if not (np.isfinite(H_s).all() and np.isfinite(g_s).all()):
         ctrl.U_warm = None
         u_out = float(np.clip(u_prev, const.TA_MIN, const.TA_MAX))
+        build_ms = (time.perf_counter() - t0) * 1000.0
         return {
             "raw_control": u_out, "applied_control": u_out, "objective": None,
             "converged": False, "verified_converged": False, "iterations": 0,
@@ -204,6 +244,7 @@ def snn_step(ctrl, x0, u_prev):
             "bound_violation": None, "n_clipped_variables": 0, "n_projections": 0,
             "rho_Ap": float(np.max(np.abs(np.linalg.eigvals(qp.linearization["Ap"])))),
             "qp_fingerprint": qp.fingerprint(), "non_finite_conditioned_problem": True,
+            "build_ms": build_ms, "solve_ms": 0.0, "total_ms": build_ms,
         }
 
     n_total = H_raw.shape[0]
@@ -214,9 +255,11 @@ def snn_step(ctrl, x0, u_prev):
 
     problem = OptimizationProblem(A=H_s, b=g_s, C=C_s, d=d_s)
     solver = SNNSolver(problem, ctrl.solver_config)
+    t_build = time.perf_counter()
 
     try:
         result = solver.solve(U_warm_scaled, verbose=False)
+        t_solve = time.perf_counter()
         U_sol = result.final_x / D  # mapping back to physical variables
 
         u_raw = float(U_sol[0])
@@ -252,9 +295,13 @@ def snn_step(ctrl, x0, u_prev):
             "n_projections": int(result.n_projections),
             "rho_Ap": float(np.max(np.abs(np.linalg.eigvals(qp.linearization["Ap"])))),
             "qp_fingerprint": qp.fingerprint(), "non_finite_conditioned_problem": False,
+            "build_ms": (t_build - t0) * 1000.0,
+            "solve_ms": (t_solve - t_build) * 1000.0,
+            "total_ms": (t_solve - t0) * 1000.0,
             "_H_s": H_s, "_g_s": g_s, "_C_s": C_s, "_d_s": d_s, "_D": D,  # for objective-gap reference solve
         }
     except Exception:
+        t_err = time.perf_counter()
         ctrl.U_warm = None
         u_out = float(np.clip(u_prev, const.TA_MIN, const.TA_MAX))
         return {
@@ -265,6 +312,9 @@ def snn_step(ctrl, x0, u_prev):
             "bound_violation": None, "n_clipped_variables": 0, "n_projections": 0,
             "rho_Ap": float(np.max(np.abs(np.linalg.eigvals(qp.linearization["Ap"])))),
             "qp_fingerprint": qp.fingerprint(), "non_finite_conditioned_problem": True,
+            "build_ms": (t_build - t0) * 1000.0,
+            "solve_ms": (t_err - t_build) * 1000.0,
+            "total_ms": (t_err - t0) * 1000.0,
         }
 
 
@@ -351,6 +401,10 @@ def run_scenario(name, disturbance_step, disturbance_magnitude, time_steps,
             "rho_Ap_cvx": r_cvx["rho_Ap"], "rho_Ap_snn": r_snn["rho_Ap"],
             "qp_fingerprint_cvx": r_cvx["qp_fingerprint"], "qp_fingerprint_snn": r_snn["qp_fingerprint"],
             "slew_saturated_cvx": slew_saturated_cvx, "slew_saturated_snn": slew_saturated_snn,
+            "build_ms_cvx": r_cvx["build_ms"], "solve_ms_cvx": r_cvx["solve_ms"],
+            "total_ms_cvx": r_cvx["total_ms"],
+            "build_ms_snn": r_snn["build_ms"], "solve_ms_snn": r_snn["solve_ms"],
+            "total_ms_snn": r_snn["total_ms"],
         })
     return rows
 
@@ -393,6 +447,41 @@ def compute_aggregate_metrics(rows, label):
         "max_abs_objective_gap_on_feasible_steps": (float(np.max(np.abs(obj_gaps))) if obj_gaps else None),
         "n_steps_both_slew_saturated": n_heatup_slew_saturated_both,
         "pct_steps_both_slew_saturated": 100.0 * n_heatup_slew_saturated_both / len(rows),
+        # Cure gate. Every other metric on this run is meaningless if the part
+        # did not cure -- both the N=5 horizon degeneracy and the
+        # max_projection_iters watchdog trap leave RMS/timing looking plausible
+        # while alpha stays at ~0. Recorded here so the gate has a file behind
+        # it rather than living in a reviewer's head.
+        # NOTE: "final" means the last row of THIS row set. For the stiff-window
+        # slice that is step 107 of the nominal run, not the end of a cure, so
+        # `cured_*` is expected to be false there and says nothing about the run.
+        "cure_gate": {
+            "note": ("'final' = last step of this row set; only meaningful as a "
+                     "cure check on a full-length scenario, not on the "
+                     "stiff-window slice."),
+            "final_alpha_snn": [float(rows[-1][f"alpha{i}_snn"]) for i in (1, 2, 3)],
+            "final_alpha_cvx": [float(rows[-1][f"alpha{i}_cvx"]) for i in (1, 2, 3)],
+            "min_final_alpha_snn": float(min(rows[-1][f"alpha{i}_snn"] for i in (1, 2, 3))),
+            "max_Tc1_snn": float(max(r["Tc1_snn"] for r in rows)),
+            "max_Tc1_cvx": float(max(r["Tc1_cvx"] for r in rows)),
+            "cured_snn": bool(min(rows[-1][f"alpha{i}_snn"] for i in (1, 2, 3)) >= 0.99),
+            "cured_cvx": bool(min(rows[-1][f"alpha{i}_cvx"] for i in (1, 2, 3)) >= 0.99),
+        },
+        # Wall-clock, both controllers timed identically in the same process and
+        # the same per-step sequence. Median is reported alongside the mean
+        # because CVXPY's first solves are compilation-dominated outliers.
+        "timing_ms": {
+            k: {
+                "mean": float(np.mean([r[k] for r in rows])),
+                "median": float(np.median([r[k] for r in rows])),
+                "max": float(np.max([r[k] for r in rows])),
+            }
+            for k in ("build_ms_cvx", "solve_ms_cvx", "total_ms_cvx",
+                      "build_ms_snn", "solve_ms_snn", "total_ms_snn")
+        },
+        "snn_total_ms_over_cvxpy_total_ms_median": float(
+            np.median([r["total_ms_snn"] for r in rows])
+            / max(1e-12, np.median([r["total_ms_cvx"] for r in rows]))),
     }
 
 
@@ -415,7 +504,7 @@ def main():
         f"_{'tr' if args.trust_region else 'notr'}_k{args.k0_scale}")
     print(f"CONFIG: {CONFIG}\n")
 
-    provenance = capture_provenance()
+    provenance = capture_provenance(horizon=args.horizon)
     provenance["shared_configuration"] = dict(CONFIG)
 
     rows_nominal = run_scenario("nominal_heatup", disturbance_step=None,

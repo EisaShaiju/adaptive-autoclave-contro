@@ -1,0 +1,95 @@
+{
+  "tag": "post060_adapted",
+  "git_commit": "d80ccb058a93e9eaf06c87c6ef9a36ce6d5bde29",
+  "snn_opt_version": "0.6.0",
+  "snn_opt_path": "C:\\Users\\eisas\\OneDrive\\Desktop\\PROJECTS\\adaptive-autoclave-contro\\.venv\\Lib\\site-packages\\snn_opt",
+  "backend_loaded": "c (compiled _kernel imported)",
+  "stiff_state_soft": {
+    "k": 87,
+    "rho_Ap": 2.4927724736462187
+  },
+  "stiff_state_hard": {
+    "k": 84,
+    "rho_Ap": 1.5525065602018713
+  },
+  "rows": [
+    {
+      "case": "soft_k87_N20_k00.5",
+      "qp_fingerprint": "d880705742f3fdda",
+      "u0_physical": 126.00000000000935,
+      "converged": false,
+      "convergence_reason": "max_iterations",
+      "iterations_used": 8000,
+      "n_projections": 3350924,
+      "final_max_violation": 8.747074788928444e-07,
+      "final_x_norm": 3085918031.09275,
+      "final_x_sha256_8dp": "05e6a57355afc7c9"
+    },
+    {
+      "case": "soft_k87_N20_k00.1",
+      "qp_fingerprint": "d880705742f3fdda",
+      "u0_physical": 125.99999619176853,
+      "converged": false,
+      "convergence_reason": "projection_budget_exhausted",
+      "iterations_used": 1,
+      "n_projections": 2000,
+      "final_max_violation": 0.011706741598485948,
+      "final_x_norm": 209077216.9715742,
+      "final_x_sha256_8dp": "2e555713e14e62a0"
+    },
+    {
+      "case": "soft_k87_N10_k00.5",
+      "qp_fingerprint": "c3b8daebe18641a3",
+      "u0_physical": 125.99998350140545,
+      "converged": false,
+      "convergence_reason": "projection_budget_exhausted",
+      "iterations_used": 15,
+      "n_projections": 22426,
+      "final_max_violation": 5.023108634460982e-05,
+      "final_x_norm": 144368.73381864897,
+      "final_x_sha256_8dp": "cb7c3148892df8ee"
+    },
+    {
+      "case": "soft_k87_N10_k00.1",
+      "qp_fingerprint": "c3b8daebe18641a3",
+      "u0_physical": 125.99999999999997,
+      "converged": false,
+      "convergence_reason": "max_iterations",
+      "iterations_used": 8000,
+      "n_projections": 2971030,
+      "final_max_violation": 8.571352205777316e-07,
+      "final_x_norm": 144344.9783673886,
+      "final_x_sha256_8dp": "414cfc6c2ccb6a15"
+    },
+    {
+      "case": "soft_k87_N5_k00.5",
+      "qp_fingerprint": "0acc46fcc25f4dcc",
+      "u0_physical": 125.99999999999994,
+      "converged": true,
+      "convergence_reason": "converged(kkt(residual=4.52e-08<=tol=2.28e-01); obj_plateau(range=2.10e-11))",
+      "iterations_used": 201,
+      "n_projections": 100118,
+      "final_max_violation": 7.497765865949191e-07,
+      "final_x_norm": 2230.0749510303617,
+      "final_x_sha256_8dp": "57c162a7b41507a5"
+    },
+    {
+      "case": "soft_k87_N5_k00.1",
+      "qp_fingerprint": "0acc46fcc25f4dcc",
+      "u0_physical": 126.00000000000014,
+      "converged": true,
+      "convergence_reason": "converged(kkt(residual=4.42e-08<=tol=2.28e-01); obj_plateau(range=2.05e-11))",
+      "iterations_used": 201,
+      "n_projections": 72751,
+      "final_max_violation": 7.335330964863829e-07,
+      "final_x_norm": 2230.0749510507085,
+      "final_x_sha256_8dp": "f7ab8c0307058ac1"
+    },
+    {
+      "case": "hard_k84_N20_default",
+      "qp_fingerprint": "b17d44cc3812895a",
+      "rejected_as_infeasible": true,
+      "rejection_message": "constraint row 82 has a zero normal and d > 0: the problem is certifiably infeasible (0 <= -176724786245.99728)"
+    }
+  ]
+}

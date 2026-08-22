@@ -4,12 +4,35 @@ Closed-loop MPC solver utilizing Spiking Neural Networks (LIF Dynamics).
 Final Architecture: Preconditioned Jacobi Scaling with Matrix-Embedded Box Constraints.
 """
 
+import dataclasses
 import numpy as np
 import time
 import src.constants as const
 from src.dynamics import linearize
 from src.qp_builder import build_canonical_qp
+import snn_opt
 from snn_opt import OptimizationProblem, SNNSolver, SolverConfig, ConvergenceConfig
+
+# snn_opt >= 0.6.0 replaced the ABSOLUTE projected-gradient stopping test with a
+# scale-invariant KKT-cone certificate, selected via
+# ConvergenceConfig.optimality_test. `proj_grad_tol` survives only as a
+# deprecated constructor-only alias -- and passing it SILENTLY forces
+# optimality_test='legacy_projected_gradient', so an upgrade alone leaves the old
+# scale-sensitive test in place. We therefore detect the field and configure
+# explicitly rather than relying on defaults.
+_HAS_KKT_CERTIFICATE = any(
+    f.name == "optimality_test" for f in dataclasses.fields(ConvergenceConfig))
+
+# 0.5.0 also turned max_projection_iters from a per-call cap into a hard
+# WATCHDOG: exceeding it aborts the solve with `projection_budget_exhausted`
+# instead of continuing. Under 0.6.0 the old budget of 200 aborts after ~1
+# outer iteration, the solver returns essentially its cold start, and the
+# closed loop STOPS CURING (measured: final alpha 0.0000, max Tc1 41.8 degC).
+# 2000 restores full cure (alpha 1.0000, max Tc1 137.84 degC) and is ~2.4x
+# faster than the legacy test at the same budget. See
+# docs/PHASE4_VALIDATION_REPORT.md section 11.1 and
+# results/kkt_certificate_probe.json.
+_MAX_PROJECTION_ITERS = 2000 if _HAS_KKT_CERTIFICATE else 200
 
 
 class SNNMPCSolver:
@@ -28,23 +51,38 @@ class SNNMPCSolver:
         self.trust_region = trust_region
         self.soft_state_constraints = soft_state_constraints
 
-        conv_config = ConvergenceConfig(
+        _conv_common = dict(
             enable_early_stopping=True,
             check_every=50,
             min_iterations=100,
             patience=3,
             obj_rel_tol=1e-7,
-            proj_grad_tol=5e-2,
             feasibility_tol=1e-2,
         )
+        if _HAS_KKT_CERTIFICATE:
+            # Scale-invariant certificate. Must be requested EXPLICITLY and
+            # WITHOUT proj_grad_tol, or snn_opt falls back to the legacy
+            # absolute test (see module header).
+            conv_config = ConvergenceConfig(
+                optimality_test='kkt',
+                kkt_abs_tol=1e-9,
+                kkt_rel_tol=1e-4,
+                **_conv_common,
+            )
+        else:
+            # snn_opt 0.4.x: only the absolute projected-gradient test exists.
+            # Documented as a scale-sensitive heuristic -- its 5e-2 threshold is
+            # compared against a norm of order 1e10 at N=20, so it cannot fire.
+            conv_config = ConvergenceConfig(proj_grad_tol=5e-2, **_conv_common)
 
         self.solver_config = SolverConfig(
             k0=None,            # Auto-computes from the Lipschitz constant of the
             k0_scale=k0_scale,  # Jacobi-conditioned Hessian (stable margin).
             projection_method='adaptive',
             max_iterations=8000,
-            max_projection_iters=200,   # Budget to resolve the coupled slew/gradient
-                                        # active set (100 leaves residual violations).
+            max_projection_iters=_MAX_PROJECTION_ITERS,  # version-dependent -- see
+                                        # module header. 0.4.x: per-call cap (200).
+                                        # >=0.5.0: hard watchdog, needs 2000.
             backend='c',        # Compiled kernel: numerically identical to the pure-
                                 # Python reference but ~85x faster (~0.1 s/step vs ~13 s).
             # NATIVE SCALAR BOUNDS REMOVED - They break in scaled vector space.
@@ -58,6 +96,12 @@ class SNNMPCSolver:
         # enforced its own constraints this would stay 0; it is non-zero here
         # (heat-up slew + exotherm), which we report honestly rather than hide.
         self.n_projection_active = 0
+
+        # Steps where snn_opt (>=0.6.0) refused the QP as certifiably infeasible
+        # -- a zero-normal constraint row with d > 0. Expected to stay 0 on the
+        # recommended soft form; non-zero indicates the hard form is in use.
+        self.n_infeasible_qp = 0
+        self.last_infeasibility_reason = None
 
         self.Q_diag = np.zeros(self.nx)
         for i in range(3):
@@ -190,7 +234,23 @@ class SNNMPCSolver:
         U_warm_scaled = U_raw * D
 
         problem = OptimizationProblem(A=H_s, b=g_s, C=C_s, d=d_s)
-        solver  = SNNSolver(problem, self.solver_config)
+
+        try:
+            solver = SNNSolver(problem, self.solver_config)
+        except ValueError as exc:
+            # snn_opt >= 0.6.0 refuses to construct on a CERTIFIABLY INFEASIBLE
+            # problem: a constraint row with a zero normal and d > 0 reduces to
+            # `0 <= negative`, unsatisfiable for every z. This is correct, and it
+            # independently reproduces this project's own finding -- the hard
+            # form's gradient rows k=0..4 are exactly decision-independent
+            # (docs/PHASE4_VALIDATION_REPORT.md section 4.1). It fires on the
+            # HARD form; the recommended soft form is feasible and unaffected.
+            # Count it and hold the previous input rather than crashing the loop.
+            self.n_infeasible_qp += 1
+            self.last_infeasibility_reason = str(exc)
+            self.U_warm = None
+            return (float(np.clip(u_prev, const.TA_MIN, const.TA_MAX)),
+                    (time.time() - t0) * 1000.0)
 
         try:
             # Disable terminal spam during normal predictions

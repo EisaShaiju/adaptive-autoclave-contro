@@ -1,0 +1,101 @@
+{
+  "tag": "pre040",
+  "git_commit": "d80ccb058a93e9eaf06c87c6ef9a36ce6d5bde29",
+  "snn_opt_version": "0.4.0",
+  "snn_opt_path": "C:\\Users\\eisas\\OneDrive\\Desktop\\PROJECTS\\adaptive-autoclave-contro\\.venv\\Lib\\site-packages\\snn_opt",
+  "backend_loaded": "c (compiled _kernel imported)",
+  "stiff_state_soft": {
+    "k": 87,
+    "rho_Ap": 2.4927724736462187
+  },
+  "stiff_state_hard": {
+    "k": 84,
+    "rho_Ap": 1.5525065602018713
+  },
+  "rows": [
+    {
+      "case": "soft_k87_N20_k00.5",
+      "qp_fingerprint": "d880705742f3fdda",
+      "u0_physical": 125.99999352946533,
+      "converged": false,
+      "convergence_reason": "max_iterations",
+      "iterations_used": 8000,
+      "n_projections": 1599905,
+      "final_max_violation": 0.022598059397055614,
+      "final_x_norm": 3085918031.1021185,
+      "final_x_sha256_8dp": "ddfb041435b2316b"
+    },
+    {
+      "case": "soft_k87_N20_k00.1",
+      "qp_fingerprint": "d880705742f3fdda",
+      "u0_physical": 125.99999989273557,
+      "converged": false,
+      "convergence_reason": "max_iterations",
+      "iterations_used": 8000,
+      "n_projections": 1600000,
+      "final_max_violation": 0.0038525059247698223,
+      "final_x_norm": 639517081.6703457,
+      "final_x_sha256_8dp": "b7ec817e06b42c7a"
+    },
+    {
+      "case": "soft_k87_N10_k00.5",
+      "qp_fingerprint": "c3b8daebe18641a3",
+      "u0_physical": 125.94063324082113,
+      "converged": false,
+      "convergence_reason": "max_iterations",
+      "iterations_used": 8000,
+      "n_projections": 1599855,
+      "final_max_violation": 2.2666598885043268,
+      "final_x_norm": 144368.40461032803,
+      "final_x_sha256_8dp": "e62d645c36e6fea8"
+    },
+    {
+      "case": "soft_k87_N10_k00.1",
+      "qp_fingerprint": "c3b8daebe18641a3",
+      "u0_physical": 126.0,
+      "converged": false,
+      "convergence_reason": "max_iterations",
+      "iterations_used": 8000,
+      "n_projections": 1599097,
+      "final_max_violation": 0.0015910546591637598,
+      "final_x_norm": 144344.978344315,
+      "final_x_sha256_8dp": "c0c55f635dc6a488"
+    },
+    {
+      "case": "soft_k87_N5_k00.5",
+      "qp_fingerprint": "0acc46fcc25f4dcc",
+      "u0_physical": 125.9983349478282,
+      "converged": false,
+      "convergence_reason": "max_iterations",
+      "iterations_used": 8000,
+      "n_projections": 1598667,
+      "final_max_violation": 0.007236317134518444,
+      "final_x_norm": 2230.069102920458,
+      "final_x_sha256_8dp": "15a2d02b423cc5e6"
+    },
+    {
+      "case": "soft_k87_N5_k00.1",
+      "qp_fingerprint": "0acc46fcc25f4dcc",
+      "u0_physical": 125.99946322049495,
+      "converged": false,
+      "convergence_reason": "max_iterations",
+      "iterations_used": 8000,
+      "n_projections": 1592566,
+      "final_max_violation": 0.0011002015850749558,
+      "final_x_norm": 2230.0736850662365,
+      "final_x_sha256_8dp": "e1698727befaf22d"
+    },
+    {
+      "case": "hard_k84_N20_default",
+      "qp_fingerprint": "b17d44cc3812895a",
+      "u0_physical": -119894.78361479277,
+      "converged": false,
+      "convergence_reason": "max_iterations",
+      "iterations_used": 8000,
+      "n_projections": 0,
+      "final_max_violation": 2250547627029.704,
+      "final_x_norm": 14417719.976595059,
+      "final_x_sha256_8dp": "20683fb00fb0e3b3"
+    }
+  ]
+}

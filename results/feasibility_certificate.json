@@ -1,0 +1,142 @@
+{
+  "git_commit": "d80ccb058a93e9eaf06c87c6ef9a36ce6d5bde29",
+  "feasibility_epsilon": 1e-06,
+  "config": {
+    "trust_region": false,
+    "soft_state_constraints": true,
+    "target_temp": 120.0
+  },
+  "stiff_state": {
+    "k": 87,
+    "rho_Ap": 2.4927724736462187
+  },
+  "note": "Slack LP is solver-independent. It answers ONLY whether the feasible set is non-empty; it says nothing about whether the SNN converges. The infeasibility recorded in docs/PHASE4_VALIDATION_REPORT.md invariant 6 concerns the HARD constraint form; this probe covers the SOFT form.",
+  "rows": [
+    {
+      "N": 20,
+      "n_constraints": 140,
+      "n_variables": 40,
+      "qp_fingerprint": "d880705742f3fdda",
+      "raw": {
+        "lp_status": "optimal",
+        "sum_slack": 3.2830086849190863e-07,
+        "max_slack": 1.6339303490634837e-07,
+        "binding_row": 0,
+        "feasible": true
+      },
+      "conditioned": {
+        "lp_status": "optimal",
+        "sum_slack": 1.3375182480084731e-08,
+        "max_slack": 3.881572130423326e-09,
+        "binding_row": 137,
+        "feasible": true
+      },
+      "conditioned_row_norm_sq": {
+        "min": 0.9999999999999998,
+        "max": 1.0000000000000004,
+        "n_below_1e-12": 0
+      },
+      "cold_start": {
+        "most_violated_row": 119,
+        "total_violation": 33630706.046490155,
+        "decision_dependent": -22804.313214427897,
+        "decision_independent_offset": 33653510.359704584,
+        "offset_share_pct": 100.06780801206762
+      },
+      "snn": {
+        "converged": false,
+        "convergence_reason": "max_iterations",
+        "iterations_used": 8000,
+        "n_projections": 1599905,
+        "max_projection_iters": 200,
+        "projections_per_iteration": 199.988125,
+        "final_max_violation_recomputed": 0.022598059397055614,
+        "final_x_norm": 3085918031.1021185
+      }
+    },
+    {
+      "N": 10,
+      "n_constraints": 70,
+      "n_variables": 20,
+      "qp_fingerprint": "c3b8daebe18641a3",
+      "raw": {
+        "lp_status": "optimal",
+        "sum_slack": 7.236248577780418e-07,
+        "max_slack": 2.959870194284243e-07,
+        "binding_row": 20,
+        "feasible": true
+      },
+      "conditioned": {
+        "lp_status": "optimal",
+        "sum_slack": 7.802635540368725e-07,
+        "max_slack": 3.9013986204793587e-07,
+        "binding_row": 30,
+        "feasible": true
+      },
+      "conditioned_row_norm_sq": {
+        "min": 0.9999999999999997,
+        "max": 1.0000000000000002,
+        "n_below_1e-12": 0
+      },
+      "cold_start": {
+        "most_violated_row": 49,
+        "total_violation": 128606.76733244945,
+        "decision_dependent": -56.51417386352777,
+        "decision_independent_offset": 128663.28150631298,
+        "offset_share_pct": 100.04394339041073
+      },
+      "snn": {
+        "converged": false,
+        "convergence_reason": "max_iterations",
+        "iterations_used": 8000,
+        "n_projections": 1599855,
+        "max_projection_iters": 200,
+        "projections_per_iteration": 199.981875,
+        "final_max_violation_recomputed": 2.2666598885043268,
+        "final_x_norm": 144368.40461032803
+      }
+    },
+    {
+      "N": 5,
+      "n_constraints": 35,
+      "n_variables": 10,
+      "qp_fingerprint": "0acc46fcc25f4dcc",
+      "raw": {
+        "lp_status": "optimal",
+        "sum_slack": 7.298464864065309e-07,
+        "max_slack": 2.7901944655423443e-07,
+        "binding_row": 5,
+        "feasible": true
+      },
+      "conditioned": {
+        "lp_status": "optimal",
+        "sum_slack": 7.485085967398321e-07,
+        "max_slack": 2.384082040379185e-07,
+        "binding_row": 11,
+        "feasible": true
+      },
+      "conditioned_row_norm_sq": {
+        "min": 1.0,
+        "max": 1.0000000000000002,
+        "n_below_1e-12": 0
+      },
+      "cold_start": {
+        "most_violated_row": 29,
+        "total_violation": 2000.4209917469127,
+        "decision_dependent": 0.0,
+        "decision_independent_offset": 2000.4209917469127,
+        "offset_share_pct": 100.0
+      },
+      "snn": {
+        "converged": false,
+        "convergence_reason": "max_iterations",
+        "iterations_used": 8000,
+        "n_projections": 1598667,
+        "max_projection_iters": 200,
+        "projections_per_iteration": 199.833375,
+        "final_max_violation_recomputed": 0.007236317134518444,
+        "final_x_norm": 2230.069102920458
+      }
+    }
+  ]
+}
