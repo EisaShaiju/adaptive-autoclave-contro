@@ -17,6 +17,11 @@ after (`8452cf4e` on `snn-qp-baseline-parity`, `931dc73f` on `main`) — but eve
 commit hash changed. Artifact directory names and the `git_commit` field inside
 each `summary.json` therefore record **pre-rewrite** hashes. Translate with:
 
+> Those two tree hashes are the tips **as of the rewrite**. `931dc73f` is still
+> `main`'s tip tree; the parity branch has since advanced past `8452cf4e` with
+> ordinary commits (this section being one of them), so re-deriving it means
+> checking the tree of `98a9cb9`, not of the current branch tip.
+
 | recorded (pre-rewrite) | current | commit |
 |---|---|---|
 | `d80ccb05` | `139c73bb` | fix(docs): typeset equations properly in the PDF build |
@@ -95,6 +100,16 @@ pointing at a resolvable hash.
   configuration this repo no longer recommends. Quoting that ratio as
   "comparable" was the error corrected in §8.5. Always state horizon,
   constraint form, **and `snn_opt` version** with any timing number.
+- **Every timing figure quoted in the docs is a MEDIAN, and the mean is much
+  worse.** The SNN's solve-time distribution is strongly right-skewed: steps
+  that stop early on the KKT certificate are fast, steps that run to the
+  iteration budget are not. On the nominal run `total_ms_snn` is 48.66 ms
+  median but **135.96 ms mean**, max 731.7 ms, against CVXPY's 5.47 / 5.85 /
+  22.4 — so the ratio is **8.9× on the median and 23.2× on the mean**. Quote
+  which statistic you mean. `tests/test_snn_closed_loop.py` prints the *average*
+  solve time (~173 ms in a standalone process) and `tests/test_closed_loop.py`
+  ~6.7 ms; those are the mean-side numbers and are consistent with this row, not
+  in conflict with the 8.9× headline.
 - **Timing is also the only non-reproducible number here.** Two identical
   regenerations of the 0.6.0 run agreed to the last recorded digit on every
   metric *except* `timing_ms`: the SNN nominal median moved 47.0 → 48.66 ms
