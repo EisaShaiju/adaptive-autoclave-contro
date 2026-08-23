@@ -1,5 +1,23 @@
 # Phase-4 Validation Report — SNN-QP vs. CVXPY/OSQP
 
+> **Read this first — sections 1–13 are Revision 4 and are preserved as a
+> record, not as current state.** Revision 5 is appended as sections 14–18 and
+> supersedes three figures wherever they appear above:
+>
+> | quantity | sections 1–13 say | current (section 15) |
+> |---|---|---|
+> | Clipped applied moves | 3.8 % / 1.3 % / 12.9 % | **0.0 % / 0.0 % / 0.0 %** |
+> | Formal convergence | 51.3 % / 46.9 % / 22.6 % | 50.0 % / 45.6 % / 16.1 % † |
+> | SNN ÷ CVXPY time | 8.9× | 16.5× (43.7× stiff) |
+>
+> † Not a regression. The certificate threshold is `kkt_rel_tol × kkt_scale`,
+> and removing the dead constraint rows shrinks `kkt_scale`, so the same
+> solution is judged against a stricter bar — the applied move is identical to
+> 1e−14 °C. See section 15.4.
+>
+> Everything else in sections 1–13 — the parity proof, the infeasibility
+> argument, the certificate diagnosis, the N=5 trap — stands unchanged.
+
 **Revision 4.** Revision 1 reported the comparison *before* the advisor's
 three technical points were addressed. Revision 2 superseded it: the
 prediction model became identical on both sides, the per-step QP became
@@ -687,12 +705,12 @@ CVXPY exhibits them equally.
    independently. What remains is to confirm whether the *saturating* case
    (soft form, 200/200 projections per iteration) is fully addressed by the
    0.5.0 watchdog or only made visible by it.
-6. **Close the stiff-window gap.** With convergence at 22.6 % and clipping at
-   12.9 % there, the stiff exotherm is now the sole remaining barrier to an
-   equivalence claim. Candidate directions: a horizon or terminal-set redesign
-   that makes the hard gradient constraint attainable (which would remove the
-   need for slacks entirely — see §3.1), step-size adaptation through the
-   exotherm, or a warm-start strategy specific to the gelation transient.
+6. ~~**Close the stiff-window gap.**~~ **Addressed in Revision 5, partially.**
+   Clipping there is now **0 %** (§15.3). Convergence is not closed and the
+   three candidate directions listed here were all tested: terminal/constraint-set
+   redesign does not help (§16.1), step-size re-tuning does not help (§17), and
+   the remaining barrier is the frozen-Jacobian prediction, not the constraint
+   or the step size (§18.3).
 7. **Re-examine `k0_scale`.** Under 0.6.0 the relationship between step size and
    final feasibility inverted at N = 20 (`k0 = 0.5` now reaches 8.7e−7 while
    `k0 = 0.1` exhausts its projection budget at 1.2e−2). The recommended
