@@ -19,8 +19,11 @@ state:
      solving the resulting canonical QP with a common reference solver
      (OSQP) at a non-gelation state gives closely-agreeing u_0 -- the
      practical "same QP -> same answer" claim.
-  5. Matrix shapes are as expected: H is N x N, f is N, A_ineq is 6N x N,
-     b_ineq is 6N.
+  5. Matrix shapes are as expected: H is N x N, f is N, and A_ineq is
+     (4N + 2m) x N where m is the number of gradient rows that survive
+     dead-row removal.
+  6. The relative degree is 5 and the gradient rows inside it are exactly
+     zero, on both controllers, with the dropped rows still reported.
 """
 from pathlib import Path
 import sys
@@ -149,12 +152,40 @@ def main():
 
     # ---- 5. Shapes ----
     print("\n--- 5. Matrix shapes ---")
+    # Row count is no longer a fixed 6N. Revision 5 omits the gradient rows
+    # inside the plant's input-to-output dead time: they have an exactly zero
+    # normal, so they are not constraints (see src/qp_builder.py). The count is
+    # therefore 4N actuator rows + 2*m gradient rows, m = N - relative_degree.
+    gr = qp_cvx.gradient_rows
+    m = gr["n_kept"]
     check("H shape (N, N)", qp_cvx.H.shape == (N, N))
     check("f shape (N,)", qp_cvx.f.shape == (N,))
-    check("A_ineq shape (6N, N)", qp_cvx.A_ineq.shape == (6 * N, N))
-    check("b_ineq shape (6N,)", qp_cvx.b_ineq.shape == (6 * N,))
+    check("A_ineq shape (4N + 2m, N)", qp_cvx.A_ineq.shape == (4 * N + 2 * m, N))
+    check("b_ineq shape (4N + 2m,)", qp_cvx.b_ineq.shape == (4 * N + 2 * m,))
     check("lower_bound/upper_bound shape (N,)",
           qp_cvx.lower_bound.shape == (N,) and qp_cvx.upper_bound.shape == (N,))
+
+    print("\n--- 6. Relative degree / dead-row removal ---")
+    # Ta enters at the outer tooling node and diffuses inward one node per
+    # sample, so it cannot influence Tc3 (state index 2) for 4 steps and Tc1
+    # (index 0) for 6. The gradient output Tc1 - Tc3 therefore has relative
+    # degree 5, and rows 0..4 are EXACTLY zero -- structurally, at every
+    # operating point, at every horizon. This is the mechanism behind both the
+    # unconditional hard-form infeasibility and the n_projections = 0 anomaly.
+    check("relative degree is 5", gr["relative_degree"] == 5)
+    check("dead rows are exactly {0..4}",
+          gr["dropped_uncontrollable"] == [0, 1, 2, 3, 4])
+    check("every dropped row had an exactly zero normal",
+          all(gr["row_norms"][i] == 0.0 for i in gr["dropped_uncontrollable"]))
+    check("every kept row has a non-zero normal",
+          all(gr["row_norms"][i] > 0.0 for i in gr["kept"]))
+    check("both controllers agree on the kept row set",
+          qp_cvx.gradient_rows["kept"] == qp_snn.gradient_rows["kept"])
+    # The rows are removed from the QP but NOT from the record: what they would
+    # have said is reported, so a predicted excursion the actuator cannot
+    # pre-empt stays visible instead of being silently dropped.
+    check("unactionable predicted violation is reported",
+          "unactionable_predicted_violation_degC" in gr)
 
     print("\n" + "=" * 60)
     if failures:

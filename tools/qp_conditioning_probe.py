@@ -102,7 +102,13 @@ def main():
     x0, u_prev, rho = stiff["x0"], stiff["u_prev"], stiff["rho"]
     print(f"  k={stiff['k']}  rho(Ap)={rho:.4f}  avg_T={stiff['avg_T']:.2f}  avg_a={stiff['avg_a']:.4f}")
 
-    ctrl = SNNMPCSolver(horizon=N, target_temp=120.0)
+    # Pinned to the pre-Revision-5 constraint set: the per-block row map below
+    # ("gradient_pos": (4N, 5N), "gradient_neg": (5N, 6N)) assumes all N
+    # gradient rows are present. The shipped default omits the 5 rows inside
+    # the plant's dead time, which would shift every block boundary. This probe
+    # reports conditioning of the ORIGINAL QP and stays pinned so its published
+    # numbers remain reproducible.
+    ctrl = SNNMPCSolver(horizon=N, target_temp=120.0, drop_uncontrollable_rows=False)
     qp = ctrl.build_qp(x0, u_prev)
     H_raw, f_raw, A_ineq, b_ineq = qp.H, qp.f, qp.A_ineq, qp.b_ineq
     C_raw, d_raw = A_ineq, -b_ineq

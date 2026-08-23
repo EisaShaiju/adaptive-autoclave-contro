@@ -4,20 +4,35 @@
 
 ---
 
-> **Revision 2 — final software-phase report.** Revision 1 was written against
+> **Revision 3 — final software-phase report.** Revision 1 was written against
 > `snn_opt` 0.4.0, in which the formal convergence flag never fired at any
 > horizon. Section 3.4 of that revision diagnosed the cause as an absolute,
 > scale-sensitive stopping test and predicted, on the record, that a
 > scale-invariant replacement would raise the convergence rate at short and
-> medium horizons but would **still not fire at the working horizon**. This
-> revision reports the outcome of acting on that diagnosis. Every number below
-> is measured under `snn_opt` 0.6.0 unless explicitly labelled 0.4.0, and every
-> figure is traceable to a file through `results/artifact-index.md`.
+> medium horizons but would **still not fire at the working horizon**.
+> Revision 2 reported the outcome of acting on that diagnosis. Every number
+> below is measured under `snn_opt` 0.6.0 unless explicitly labelled 0.4.0, and
+> every figure is traceable to a file through `results/artifact-index.md`.
 >
-> The headline conclusion is revised from *same problem, unreliable convergence*
-> to *same problem, feasible everywhere, convergence established on a
-> substantial minority of steps and specifically absent where the controller
-> matters most*. It is still not an equivalence claim.
+> **Revision 3 closes the problem-formulation question** (§3.9–§3.11). It
+> establishes that the constrained output has *relative degree 5*, so the first
+> five gradient-constraint rows were never constraints at all; that the residual
+> output clipping — named in Revision 2 as the largest remaining objection to
+> any equivalence claim — was caused by a projection watchdog **aborting** the
+> solve, and is now **eliminated (0 % of applied moves, down from 12.9 % in the
+> stiff window)**; and that two other plausible causes, the constraint set and
+> the slack-penalty scaling, are refuted by measurement.
+>
+> Two Revision-2 expectations did not survive: lengthening or shortening the
+> constraint set does not affect convergence at all, and the reported
+> convergence *rate* falls when dead rows are removed purely because the
+> certificate's threshold scales with the problem. Both reversals are reported
+> in place rather than dropped.
+>
+> The headline conclusion is *same problem, feasible everywhere, every applied
+> move now solver-produced, convergence established on a substantial minority of
+> steps and specifically absent where the controller matters most*. It is still
+> not an equivalence claim.
 >
 > Step-by-step validation evidence: `docs/PHASE4_VALIDATION_REPORT.md`.
 
@@ -35,18 +50,15 @@ demanding physical problem: the autoclave cure of a thick-sectioned composite la
 exothermic Arrhenius kinetics make the linearised prediction model unstable precisely where
 control is most critical. We implement a non-linear finite-difference digital twin, a classical
 CVXPY/OSQP MPC baseline, and an SNN-QP controller built on a projected-gradient/LIF solver, and
-we subject the claim of solver equivalence to direct measurement. We report four findings.
+we subject the claim of solver equivalence to direct measurement. We report six findings.
 First, establishing that two controllers solve the *same* QP is substantially harder than it
 appears: we identify and correct a one-step prediction-window error and an asymmetric Jacobian
 clamp, either of which silently invalidates a head-to-head comparison, and we unify both
 controllers onto a single canonical QP construction verified bit-identical across a full
 trajectory. Second, the per-step QP is *infeasible* at stiff exotherm steps under the natural
-hard-constraint formulation — not approximately, but algebraically: the condensed prediction
-matrix has an identically zero first block-row, so five uniformity-constraint rows carry a zero
-normal vector, three of them against a negative right-hand side. The SNN's apparent failure to
-converge was therefore, for a large part of the trajectory, the correct response to an empty
-feasible set, and no rescaling or preconditioning could have repaired it. Third, once the
-problem is made feasible by an exact ℓ₁ penalty on the state rows alone, the SNN reaches the
+hard-constraint formulation — not approximately, but algebraically: five uniformity-constraint
+rows carry a zero normal vector, three of them against a negative right-hand side. Third, once
+the problem is made feasible by an exact ℓ₁ penalty on the state rows alone, the SNN reaches the
 optimum to within 5 × 10⁻⁴ °C of a reference solver while its convergence flag never fires,
 because the library's projected-gradient stopping test is absolute rather than scale-invariant
 and cannot trigger on a problem whose gradient scale is ~10¹⁰. Fourth — the test of that
@@ -56,9 +68,22 @@ operation, makes every step feasible, and reduces the maximum constraint residua
 of magnitude, while leaving the closed-loop trajectory essentially unchanged (overshoot 13.24 →
 13.23 °C): the applied control was already right, and what improved was its certification. At
 the long horizon the new certificate still fails by a factor of 113, exactly as predicted before
-it was run. We conclude that the two controllers solve the same QP, that their applied controls
-agree to 0.707 °C RMS, and that convergence is now established on a substantial minority of
-steps but remains weakest — 23 % — in the stiff exotherm window the controller exists to handle.
+it was run. Fifth, we show the zero rows are not an accident of particular states but the
+plant's **relative degree**: the manipulated air temperature reaches the surface node only after
+four diffusion steps and the centre node after six, so the through-thickness gradient cannot be
+influenced for five samples and its first five constraint rows are identically zero at every
+operating point and every horizon — a textbook consequence of plant delay, and one that no
+choice of horizon can repair, as we confirm by finding the unsatisfiable row set identical for
+N = 5, 10, 15 and 20. Sixth, the residual output clipping that remained the strongest objection
+to any equivalence claim is **eliminated**: it was caused not by solver inaccuracy but by a
+projection watchdog *aborting* the solve after roughly 130 of 8000 permitted iterations on half
+the stiff window, and restoring the budget removes every abort and takes clipping from 12.9 % to
+**0 %** there, at a cost of roughly 30× the stiff-window solve time — time the previous
+configuration had simply not been spending. We conclude that the two controllers solve the same
+QP, that their applied controls agree to 0.707 °C RMS, that every applied move is now
+solver-produced rather than filter-corrected, and that formal convergence nonetheless remains
+weakest — 16 % — in the stiff exotherm window the controller exists to handle, where every
+non-converged step now exhausts its iteration allowance without meeting the certificate.
 
 ---
 
@@ -554,20 +579,219 @@ and is excluded from our claims.
 
 ---
 
+### 3.9 The zero rows are the plant's relative degree
+
+Section 3.3 established that certain gradient-constraint rows have an identically zero normal
+vector, and attributed this to the pinned initial state. That explanation is correct for
+$k=0$ but incomplete, and the complete version is more useful because it is structural.
+
+The manipulated variable $T_a$ enters the discretised plant at one node only — the outer tooling
+node, index 6 — so $B_p$ has a single non-zero entry. Heat then diffuses inward one node per
+sample. Propagating $A_p^{\,p} B_p$ and recording where it first becomes non-zero:
+
+| $p$ | support of $A_p^{\,p} B_p$ | reaches $T_{c3}$ (index 2) | reaches $T_{c1}$ (index 0) |
+|---|---|---|---|
+| 0 | \{6\} | — | — |
+| 1 | \{5,6\} | — | — |
+| 2 | \{4,5,6\} | — | — |
+| 3 | \{3,4,5,6\} | — | — |
+| 4 | \{2,…,6\} | **yes** | — |
+| 6 | \{0,…,6\} | yes | **yes** |
+
+The constrained output is $c^\top x = x_0 - x_2 = T_{c1} - T_{c3}$, and the condensed prediction
+gives $\Gamma_{i,j} = A_p^{\,i-1-j} B_p$. Row $i$ of the gradient block is therefore the zero
+vector precisely when $c^\top A_p^{\,p} B_p = 0$ for all $p \le i-1$, which by the table above
+means $i \le 4$. The constrained output has **relative degree 5**, and
+
+$$\text{gradient rows } k = 0,1,2,3,4 \text{ are exactly zero at every operating point and every horizon.} \tag{9}$$
+
+This is not a numerical near-degeneracy and not a property of stiff states: it follows from the
+sparsity pattern of the diffusion stencil, which does not change. It is also a documented MPC
+failure mode rather than a novel one. The MathWorks MPC Toolbox documentation states the same
+rule for output-variable constraints inside a plant's delay: for a plant with five sampling
+periods of delay, an output constraint before the sixth prediction step is in general impossible
+to satisfy, and all output constraints should therefore be softened [7].
+
+Two consequences follow, and they explain both anomalies reported in §3.3 as one mechanism.
+A row with a zero normal is not a constraint on the decision variable at all; it reduces to
+$0 \le \text{GRADIENT}_{\max} \mp (\Phi x_0)_k$, a predicate on the *current* state. When that
+predicate is false the QP is unconditionally infeasible — at any horizon, for any solver. And
+because `snn_opt` skips rows with squared norm below $10^{-12}$ *without* incrementing its
+projection counter or altering the residual, the projection selector re-picks the same dead row
+indefinitely, which is exactly the `n_projections = 0` observation.
+
+We therefore omit these rows from the QP and report them separately. Omitting them without
+reporting would replace a real physical limitation — a predicted excursion the actuator cannot
+pre-empt within the transport delay — with silence. The reported quantity
+`unactionable_predicted_violation_degC` reaches 391 °C on the nominal run, and it must be read
+for what it is: a frozen-Jacobian prediction from a model we measure below to over-predict this
+very quantity by two orders of magnitude. The *actual* non-linear plant peaks at 28.9 °C and
+breaches the 10 °C limit on 3 of 160 steps.
+
+**Horizon length is not the mechanism and cannot be the remedy.** The set of unsatisfiable rows
+is identical for $N = 5, 10, 15, 20$, measured at every step of a 159-step trajectory. Removing
+the dead rows resolves exactly two infeasible steps at every horizon; the remainder are live rows
+far out in the horizon, discussed in §3.11. One further degeneracy deserves recording: with
+$r=5$, an $N=5$ horizon has **no live gradient rows at all**, so its constraint set is vacuous.
+The configuration §3.8 identifies as degenerate for failing to cure the part is independently
+degenerate for silently discarding the only output constraint in the problem.
+
+### 3.10 The residual clipping was an aborted solve, not an inaccurate one
+
+Revision 2 named output clipping — 3.8 % of applied moves overall and 12.9 % inside the stiff
+window — as the largest remaining objection to any equivalence claim, and attributed it to
+solver inaccuracy. That attribution was wrong, and the correction removes the objection.
+
+`snn_opt` reports a `convergence_reason` that distinguishes three terminations which a bare
+`converged = False` conflates. Classifying the 31 stiff-window states at the Revision-2
+projection budget of 2000:
+
+| termination | count | meaning |
+|---|---|---|
+| `projection_budget_exhausted` | **15** | the solve was **aborted** part-way |
+| `max_iterations` | 11 | ran the full allowance, certificate unmet |
+| `converged(...)` | 5 | certificate met |
+
+On roughly half the stiff window the solver was not converging slowly — it was stopping after
+approximately 130 of its 8000 permitted iterations and returning whatever iterate it had reached.
+That iterate is not guaranteed admissible, and the output filter was rescuing it. The clipping
+was a symptom of the watchdog, not of the method.
+
+Raising the budget removes every abort, and the effect saturates sharply:
+
+| `max_projection_iters` | stiff convergence | median solve (ms) | aborts |
+|---|---|---|---|
+| 2000 | 16.1 % | 9.8 | 15 |
+| **5000** | **25.8 %** | 297.9 | **0** |
+| 20 000 | 25.8 % | 296.9 | 0 |
+| 100 000 | 25.8 % | 303.6 | 0 |
+| 500 000 | 25.8 % | 299.5 | 0 |
+
+5000 is a threshold rather than a tuning parameter: two further order-of-magnitude increases
+change nothing. Raising the *iteration* cap instead has no effect at all (8000, 30 000 and
+100 000 all give 25.8 %, at up to twelve times the runtime), which localises the residual
+non-convergence to the method rather than to any budget. The benign window is unaffected by the
+budget in either direction, at 60 %.
+
+In closed loop the payoff is unambiguous:
+
+**Table 4.** Effect of the projection budget, closed loop, $N=10$, soft, $k_0$-scale 0.1.
+
+| Metric | Rev. 2 (budget 2000) | Rev. 3 (budget 5000) |
+|---|---|---|
+| Applied moves from the safety clip, nominal | 3.8 % | **0.0 %** |
+| Applied moves from the safety clip, stiff | 12.9 % | **0.0 %** |
+| `projection_budget_exhausted` | ~half of stiff steps | **0** |
+| Max constraint residual | 1.92 × 10⁻⁵ | **6.8 × 10⁻⁷** |
+| Median solve time, stiff | 27.2 ms | 425.9 ms |
+
+Every applied move is now produced by the solver rather than corrected by the filter. The cost is
+substantial and we state it without softening: overall compute rises from 8.9× to 16.5× the OSQP
+baseline, and within the stiff window from 5.0× to 43.7×. This is not a regression. The earlier
+figure was fast *because the solver was giving up*, and the corrected number is the true price of
+attempting the solve. A practitioner who prefers the earlier operating point can restore it, and
+inherits 12.9 % clipping with it.
+
+We separate the two Revision-3 changes by experiment rather than asserting their effects:
+
+| configuration | stiff convergence | stiff clipping | residual |
+|---|---|---|---|
+| budget 2000, dead rows kept | 22.58 % | 12.90 % | 1.92 × 10⁻⁵ |
+| budget 2000, dead rows dropped | 16.13 % | 12.90 % | 2.37 × 10⁻⁵ |
+| budget 5000, dead rows dropped | 16.13 % | **0.00 %** | 6.84 × 10⁻⁷ |
+
+Dead-row removal moves the convergence rate and nothing else; the budget moves the clipping and
+the residual.
+
+**The apparent convergence regression is a moving threshold, not a worse answer.** The KKT
+tolerance is $\texttt{kkt\_rel\_tol} \times \texttt{kkt\_scale}$, and removing rows shrinks
+`kkt_scale`, tightening the test while the residual is unchanged. At step 80 the scale falls from
+341 to 302 and the tolerance from $3.41\times10^{-2}$ to $3.02\times10^{-2}$; the applied move
+differs by $1.4\times10^{-14}$ °C. The solution is the same to machine precision and the bar
+moved. This yields a reporting rule we now observe: **convergence rates are not comparable across
+different constraint sets**, because the certificate threshold is a function of the problem.
+
+A related caution: the certificate is a *conjunction*,
+`converged(kkt(...); obj_plateau(...))`. Disabling early stopping removes the plateau term and
+convergence falls to 0 %, which we initially and wrongly read as evidence that the KKT test was
+never firing.
+
+### 3.11 Two candidate remedies refuted, and where the difficulty actually lies
+
+Two further explanations for the stiff-window convergence rate were plausible enough to test, and
+both fail. We record them because the cost of re-deriving a refuted hypothesis is high.
+
+**The constraint set does not drive convergence.** Sweeping the number of imposed gradient rows
+from ten down to one — dead-row removal together with every constraint horizon $N_c$ from 6 to
+$N$, at both $N=10$ and $N=20$ — leaves stiff-window convergence flat at 16.1 % and 19.4 %
+respectively, with the applied move unchanged to about $10^{-7}$ °C. The reason is visible in the
+conditioning: `_condition` row-normalises the constraint matrix, so the row-norm spread is
+$\sqrt{2}$ in *every* configuration, and $\mathrm{cond}(H) \approx 780$ in both stiff and benign
+states. There is no conditioning headroom to recover. We therefore do not adopt a constraint
+horizon, though the option is implemented and documented.
+
+**The ℓ₁ penalty is already exact.** Kerrigan and Maciejowski [6] give the exactness condition
+$\rho > \lVert \lambda^* \rVert_\infty$, with $\lambda^*$ the multipliers of the hard problem on
+the softened rows. Measuring both sides across 159 steps: $\rho = 10^{3}$ against a maximum
+$\lVert \lambda^* \rVert_\infty$ of $1.15\times10^{-5}$ and a median of $1.51\times10^{-7}$. The
+condition holds on **100 %** of the 146 hard-feasible steps, with a margin of roughly $10^{8}$,
+and the realised discrepancy between the soft and hard solutions on the applied move is
+$4.1\times10^{-6}$ °C. Penalty scaling was never a defect. The quadratic slack term is never
+exact at finite weight by construction, and the figure above bounds its contribution.
+
+The step size is likewise already at its best value: sweeping $k_0$-scale over
+$\{0.05, 0.1, 0.5, 0.9\}$ gives 22.6 %, **25.8 %**, 19.4 % and 16.1 %, monotone away from the
+configured 0.1 in both directions.
+
+**Where the difficulty actually lies** is the prediction model. The linearisation freezes the
+Arrhenius Jacobian at the current operating point, but the real exotherm is self-limiting: as
+$\alpha \to 1$ the rate term collapses and the reaction burns out. A frozen Jacobian cannot
+represent its own extinction. Measured from step 88, with $\rho(A_p) = 1.43$:
+
+**Table 5.** Predicted versus actual through-thickness gradient (°C), from step 88.
+
+| prediction step $h$ | linear free response | actual non-linear |
+|---|---|---|
+| 0 | −3.58 | −3.58 |
+| 2 | 16.79 | 0.30 |
+| 4 | 115.27 | 28.87 |
+| 6 | 341.30 | 11.66 |
+| 10 | **1798.54** | **6.78** |
+
+The prediction is qualitatively right for about two steps, badly wrong by four, and absurd by
+ten. This is what generates the enormous slack values — up to $5.2\times10^{6}$ at $N=20$ — and,
+combined with §3.9, it produces an uncomfortable structural result: the constrained output cannot
+be influenced before step 5, while the prediction stops being quantitatively trustworthy after
+about step 3. **The controllable window opens after the trustworthy window has closed.** No
+choice of constraint horizon can satisfy both conditions during gelation, which is the deeper
+reason §3.11's first refutation holds.
+
+We emphasise what this is not. It is not a statement that the physical constraint is
+unattainable, and it does not license shrinking $A_p$: §3.1 already records that suppressing the
+unstable prediction erases the exotherm and costs 9 °C of overshoot. The unstable model is right
+about the direction of the excursion and wrong about its magnitude far out. Repairing that
+properly requires re-linearising along the predicted trajectory — an LTV rather than LTI
+prediction — which changes the condensation itself and is beyond the scope of this revision.
+
+---
+
 ## 4 Discussion
 
 We set out to test whether a spiking network can be substituted for a classical QP solver inside
 an MPC loop. Our answer is qualified in a specific way: the two controllers demonstrably receive
 the same problem, their applied controls agree to 0.707 °C RMS, every step of the trajectory is
-now feasible with a maximum constraint residual of $3.5\times10^{-5}$, and formal convergence —
-previously unattainable at any horizon that cures the part — is now certified on 51 % of nominal
-steps. But convergence is **22.6 %** in the stiff exotherm window, 12.9 % of applied moves there
-still originate from a downstream safety filter rather than a certified solver output, and at
-the long horizon the certificate fails by a factor of 113. We therefore state the result as
-*same problem, feasible everywhere, convergence established on a substantial minority of steps
-and weakest exactly where the controller matters*, and continue to decline to call it
-equivalence. We use no comparative term — "equivalent", "on par", "comparable" — anywhere in
-this report without an accompanying numerical tolerance.
+feasible with a maximum constraint residual of $7.6\times10^{-7}$, **every applied move is now
+produced by the solver rather than corrected by a downstream filter** (clipping 0 % in all three
+scenarios, from 12.9 % in the stiff window), and formal convergence — previously unattainable at
+any horizon that cures the part — is certified on 50 % of nominal steps. But convergence is
+**16.1 %** in the stiff exotherm window, every non-converged step there exhausts its iteration
+allowance without meeting the certificate, and at the long horizon the certificate fails by a
+factor of 113. The price of removing the clipping is a rise from 8.9× to 16.5× the reference
+solver's compute, and to 43.7× within the stiff window. We therefore state the result as
+*same problem, feasible everywhere, every applied move solver-produced, convergence established
+on a substantial minority of steps and weakest exactly where the controller matters*, and
+continue to decline to call it equivalence. We use no comparative term — "equivalent", "on par",
+"comparable" — anywhere in this report without an accompanying numerical tolerance.
 
 It is worth being precise about what improved and what did not, because the two are easily
 conflated. What improved is the solver's *certification* of its own output: the flag, the
@@ -580,7 +804,7 @@ on about half of steps. An uncertified correct answer and an uncertified wrong a
 identical from outside, and closing that gap is the prerequisite for trusting the loop rather
 than merely observing that it happens to work.
 
-Four observations seem worth carrying forward.
+Five observations seem worth carrying forward.
 
 **Equivalence is an experimental claim with a high evidentiary bar.** Two of the defects we found
 — the prediction-window offset and the asymmetric Jacobian clamp — produced closed-loop
@@ -616,6 +840,16 @@ studies of this kind carry an explicit, machine-checked gate on a physical outco
 from the metrics being reported, and that per-step records be retained so that a suspicious
 aggregate can be re-partitioned after the fact rather than re-measured.
 
+**A constraint the actuator cannot reach is not a constraint.** The single most consequential
+defect in this study was imposing an output constraint inside the plant's transport delay, where
+the constraint row is identically zero and the QP is unconditionally infeasible. It survived
+three revisions because it is invisible in every aggregate metric and because the soft
+reformulation absorbed it. The general lesson is to check the *relative degree* of any
+constrained output against the row index at which it is first imposed, before attributing an
+infeasibility or a convergence failure to the solver. We would also suggest that a removed
+constraint row be reported rather than deleted: the row we dropped still encodes a real physical
+prediction, and reporting it is what distinguishes a formulation fix from a quiet relaxation.
+
 **Limitations.** The horizon reduction that made the problem tractable was selected empirically
 rather than from the plant's thermal time constants. Softening the uniformity constraint weakens
 its guarantee, though the hard form it replaces is provably infeasible and therefore
@@ -624,29 +858,46 @@ solution is insensitive to the penalty weight across two orders of magnitude. Ou
 evidence that the returned solution is optimal comes from a horizon too short to control the
 plant; at the working horizon we establish that the applied move matches the reference optimum
 to $1.5\times10^{-6}$ °C but the full-horizon vector does not, and we do not claim otherwise.
-Formal convergence remains absent on roughly half of nominal steps and three-quarters of stiff
-ones. The residual clipping rate of 12.9 % in the stiff window is the single largest outstanding
-objection to any equivalence claim. Compute time is ~8.9× the reference on CPU. Finally, all
-results are in simulation against a digital twin of a single laminate geometry; no physical
-autoclave was involved.
+Formal convergence remains absent on half of nominal steps and 84 % of stiff ones, and the
+residual is no longer attributable to any budget: every non-converged stiff step exhausts its
+iteration allowance with the certificate unmet, and three order-of-magnitude increases in that
+allowance change nothing. Output clipping, which earlier revisions named as the largest
+outstanding objection to any equivalence claim, is now 0 %; the cost is that compute time rises
+to 16.5× the reference on CPU overall and 43.7× within the stiff window. The prediction model
+remains a frozen Jacobian, which we measure over-predicting the constrained output by two orders
+of magnitude ten steps ahead during gelation; this, rather than the constraint or the penalty, is
+what generates the large slacks, and repairing it requires an LTV prediction we did not attempt.
+The formulation also has no terminal cost, terminal set or local controller, so we claim
+step-wise feasibility as observed and make no recursive-feasibility or nominal-stability claim.
+Finally, all results are in simulation against a digital twin of a single laminate geometry; no
+physical autoclave was involved.
 
-**Future work.** The remaining problem is now specific rather than diffuse: it is the stiff
-exotherm window. Three candidate directions follow from the analysis above. A horizon or
-terminal-set redesign that makes the hard uniformity constraint attainable would remove the need
-for slacks altogether and is the most principled of the three, since it addresses the zero-normal
-mechanism of §3.3 at its source. Step-size adaptation through the exotherm targets the
-observation that the relative projected-gradient norm at the working horizon depends strongly on
-the step size, which was tuned against the superseded criterion and is very likely no longer
-optimal. A gelation-specific warm start would attack the same steps from the initialisation
-side. Separately, it remains to be confirmed whether the saturating-projection pathology is
-genuinely repaired by the new watchdog or merely made visible by it.
+**Future work.** Three of the four directions proposed in Revision 2 have now been tested and
+three are closed. Terminal or constraint-set redesign does not help: the constraint set does not
+influence convergence at all (§3.11), and the formulation has no terminal ingredient for a
+redesign to act on. Step-size re-tuning does not help: $k_0$-scale 0.1 is already optimal of the
+values swept, so the conjecture that the previous value was tuned against the superseded
+criterion and had become stale is not supported. The saturating-projection question is settled:
+the watchdog made the pathology visible and did not repair it, and repairing it is what
+eliminated the clipping (§3.10).
 
-Hardware implementation should continue to wait. Committing a solver to fixed hardware while its
-convergence certificate fires on under a quarter of steps in the regime the controller exists
-for, and while an eighth of the applied moves in that regime come from a safety filter, would
-freeze in the solver's behaviour precisely where it is least certified, in a substrate where
-diagnosis is far more expensive. A reasonable gate would be stiff-window convergence comfortably
-above 90 % with clipping in the low single digits, on a configuration that still cures the part.
+What remains is narrower and harder. The binding limitation is the prediction model — a frozen
+Jacobian that over-states the constrained output by two orders of magnitude ten steps ahead
+during gelation (Table 5). Because the constrained output cannot be influenced before step 5
+while the prediction ceases to be trustworthy after about step 3, no constraint horizon exists
+that is simultaneously actionable and accurate during the exotherm. The principled remedy is an
+LTV prediction, re-linearising along the predicted trajectory, which changes the condensation and
+is a substantially larger piece of work than anything attempted here. Constraint tightening in
+the manner of tube MPC would be the rigorous alternative. Adding terminal ingredients would,
+separately, supply the recursive-feasibility guarantee the controller currently lacks.
+
+Hardware implementation should continue to wait, but the reason has narrowed. The clipping
+objection is gone: every applied move is now solver-produced. What remains is that the
+convergence certificate fires on 16 % of steps in the regime the controller exists for, and that
+this residual is a property of the iteration rather than of any budget we can raise. A reasonable
+gate would be stiff-window convergence comfortably above 90 %, on a configuration that still
+cures the part; clipping in the low single digits, the other half of the Revision-2 gate, is
+already met at 0 %.
 The architectural argument for event-driven hardware is unaffected by any of this and remains
 the motivation for the work — on CPU the SNN is strictly worse than a mature classical solver,
 and it is only on a substrate that exploits its parallelism that the comparison becomes
@@ -718,3 +969,12 @@ package, versions 0.4.0 and 0.6.0. <https://github.com/ahkhan03/SNN_opt>
 
 [6] E. C. Kerrigan and J. M. Maciejowski. Soft constraints and exact penalty functions in model
 predictive control. *Proceedings of the UKACC International Conference (Control)*, 2000.
+
+[7] The MathWorks, Inc. Specify constraints. *Model Predictive Control Toolbox documentation*.
+<https://www.mathworks.com/help/mpc/ug/specifying-constraints.html> (accessed August 2026).
+
+[8] D. Q. Mayne, J. B. Rawlings, C. V. Rao, and P. O. M. Scokaert. Constrained model predictive
+control: stability and optimality. *Automatica*, 36(6):789–814, 2000.
+
+[9] L. Grüne and J. Pannek. *Nonlinear Model Predictive Control: Theory and Algorithms*, 2nd ed.
+Springer, 2017.

@@ -766,3 +766,253 @@ configuration that still cures the part. At that point the hardware experiment
 tests the SNN's actual value proposition — energy and latency on neuromorphic
 substrate — rather than baking in a solver that is unreliable exactly when the
 plant is hardest to control.
+
+---
+
+# Revision 5 — closing the stiff exotherm window
+
+Revision 4 left three open items: close the stiff window; re-tune `k0_scale`;
+and settle whether the saturating-projection case was fixed by the 0.5.0
+watchdog or merely made visible by it. All three are now answered. Two of them
+did not answer the way the Revision-4 write-up predicted, and those reversals
+are recorded here rather than quietly dropped.
+
+Literature grounding for this section: Mayne et al., *Automatica* 36(6):789-814 (2000)
+on terminal ingredients and recursive feasibility; Grune & Pannek, *Nonlinear Model
+Predictive Control* (Springer, 2017) on linearisation validity and reachability;
+Kerrigan & Maciejowski, UKACC Control (2000) on exact penalty functions; and the
+MathWorks MPC Toolbox documentation on output constraints inside a plant's delay.
+
+## 14. The gradient constraint has relative degree 5
+
+### 14.1 The mechanism
+
+`Ta` enters the plant only at the outer tooling node (`Bp` has support at index
+6 alone) and heat diffuses inward one node per sample. Measured directly:
+
+| `p` | support of `Ap^p Bp` | `(Ap^p Bp)[0]` (`Tc1`) | `(Ap^p Bp)[2]` (`Tc3`) |
+|---|---|---|---|
+| 0 | {6} | 0 | 0 |
+| 1 | {5,6} | 0 | 0 |
+| 2 | {4,5,6} | 0 | 0 |
+| 3 | {3,4,5,6} | 0 | 0 |
+| 4 | {2,…,6} | 0 | **3.88e−3** |
+| 6 | {0,…,6} | **1.07e−3** | 9.63e−2 |
+
+The constrained output is `c^T x = x[0] − x[2] = Tc1 − Tc3`. Since
+`Γ[i,j] = Ap^{i−1−j} Bp`, gradient row `i` is the **zero vector** whenever
+`i − 1 ≤ 3`, i.e. for `i ≤ 4`. **The relative degree is 5 and rows k=0..4 are
+exactly zero — at every operating point, at every horizon.**
+
+This upgrades Revision 4's finding from an observation about particular stiff
+states to a structural property of the discretisation stencil. Such a row is
+not a constraint: it reduces to `0 ≤ GRADIENT_MAX ∓ (Φ x₀)_k`, a predicate on
+the current state that no input can influence. If the predicate is false the QP
+is unconditionally infeasible.
+
+This is a documented MPC failure mode, not a novel one. MathWorks' MPC Toolbox
+documentation states it directly: "consider a SISO plant with five sampling
+periods of delay. An OV constraint before the sixth prediction horizon step is,
+in general, impossible to satisfy."
+
+### 14.2 Horizon length was never the cause
+
+The set of unsatisfiable rows is **identical for N = 5, 10, 15 and 20**,
+measured at every step of a 159-step trajectory. Lengthening the horizon cannot
+fix it. Worse, `N=5` has a second degeneracy on top of the one in §7: with
+`r=5` it has **no live gradient rows at all**, so its constraint is vacuous.
+
+| `N` | hard form as built | dead rows removed |
+|---|---|---|
+| 5 | 11/159 infeasible | 0/159 — *but zero live gradient rows* |
+| 10 | 15/159 | 13/159 |
+| 15 | 18/159 | 16/159 |
+| 20 | 21/159 | 19/159 |
+
+### 14.3 What was done
+
+`build_canonical_qp` now omits rows whose normal is exactly zero and **reports**
+them via `gradient_rows`, including `unactionable_predicted_violation_degC` —
+the largest predicted excursion on a row no admissible input could have
+prevented. Removing the rows without reporting them would convert a real
+physical limitation into an invisible one. `drop_uncontrollable_rows=False`
+reproduces the old constraint set for A/B work.
+
+Read that reported number carefully: it reaches 391 °C, but it is a
+*frozen-Jacobian prediction* from a model measured to over-predict this
+quantity by two orders of magnitude during gelation. The **actual** nonlinear
+plant peaks at 28.9 °C and breaches the 10 °C limit on 3 of 160 steps.
+
+Artifact: `results/constraint_set_experiment.json`. Test: `tests/test_qp_parity.py` section 6.
+
+## 15. The projection budget was the real defect
+
+### 15.1 Diagnosis
+
+`convergence_reason` distinguishes three terminations that Revision 4 collapsed
+into a single `converged=False`. On 31 frozen stiff-window states at the
+Revision-4 budget of 2000:
+
+| termination | count |
+|---|---|
+| `projection_budget_exhausted` | **15** |
+| `max_iterations` | 11 |
+| `converged(...)` | 5 |
+
+The solver was **aborting after ~130 of its 8000 permitted iterations** on
+roughly half the stiff window — not failing to converge, but never finishing.
+
+Note also that the certificate is a *conjunction*:
+`converged(kkt(...); obj_plateau(...))`. Setting `enable_early_stopping=False`
+removes the plateau half and convergence drops to 0 %. That is not evidence the
+KKT test is failing, and it was briefly misread as such.
+
+### 15.2 The fix and its saturation point
+
+| `max_projection_iters` | stiff conv. | median ms | aborts |
+|---|---|---|---|
+| 2000 | 16.1 % | 9.8 | 15 |
+| **5000** | **25.8 %** | 297.9 | **0** |
+| 20 000 | 25.8 % | 296.9 | 0 |
+| 100 000 | 25.8 % | 303.6 | 0 |
+| 500 000 | 25.8 % | 299.5 | 0 |
+
+A genuine threshold, not a knob: it saturates exactly at 5000. Raising
+`max_iterations` instead does nothing (8000/30000/100000 give 25.8 % at up to
+12× the time), so the residual non-convergence is a real limit of the
+projected-gradient method, not a budget problem. The benign window is
+unaffected either way (60 % at both budgets).
+
+**This settles the standing question:** the 0.5.0 watchdog made the saturating
+projection case *visible*; it did not fix it.
+
+### 15.3 The closed-loop payoff: clipping goes to zero
+
+| Metric (stiff window) | Rev. 4 | Rev. 5 |
+|---|---|---|
+| Applied moves from the safety clip | 12.9 % | **0.0 %** |
+| `projection_budget_exhausted` | about half of steps | **0** |
+| Max constraint residual | 1.92e−5 | **6.8e−7** |
+| Formal convergence | 22.6 % | 16.1 % |
+| Median solve time | 27.2 ms | 425.9 ms |
+
+Clipping is **0.0 % in all three scenarios**. Every applied move now comes from
+the solver rather than from the output filter — which Revision 4 named as "the
+largest remaining objection to any equivalence claim".
+
+Attribution is separated by experiment, not asserted:
+
+| configuration | stiff conv. | stiff clip | residual |
+|---|---|---|---|
+| budget 2000, dead rows kept (Rev. 4) | 22.58 % | 12.90 % | 1.92e−5 |
+| budget 2000, dead rows **dropped** | 16.13 % | 12.90 % | 2.37e−5 |
+| budget **5000**, dead rows dropped (Rev. 5) | 16.13 % | **0.00 %** | 6.84e−7 |
+
+Dead-row removal moved the convergence rate and nothing else; the budget moved
+the clipping and the residual.
+
+### 15.4 The convergence rate fell because the test got stricter
+
+This is the reversal that matters most, and it would be easy to misreport as a
+regression. The KKT tolerance is `kkt_rel_tol × kkt_scale`. Dropping the dead
+rows shrinks `kkt_scale`, tightening the bar while the residual is unchanged:
+
+| step | `kkt_scale` kept → dropped | `kkt_tol` kept → dropped | `u₀` difference |
+|---|---|---|---|
+| 80 | 341 → 302 | 3.41e−2 → 3.02e−2 | 1.4e−14 |
+| 100 | 344 → 306 | 3.44e−2 → 3.06e−2 | 0.0 |
+
+**The applied move is identical to 1e−14 °C.** The solution did not get worse;
+the threshold moved. The corollary is a reporting rule: **convergence rates are
+not comparable across different constraint sets**, because the certificate's
+threshold is a function of the problem.
+
+### 15.5 The cost, stated plainly
+
+Overall solve time goes from 8.9× to **16.5×** the OSQP baseline, and in the
+stiff window from 5.0× to **43.7×**. This is a deliberate trade, not a
+regression: the Revision-4 timing was fast *because the solver was giving up*.
+Paying the full solve cost is what took clipping to zero. Anyone who prefers the
+old operating point can set `_MAX_PROJECTION_ITERS = 2000` and accept 12.9 %
+clipping in the stiff window.
+
+Artifact: `results/solver_budget_experiment.json`.
+
+## 16. Two candidate fixes ruled out by measurement
+
+Both were plausible, both were in the plan, and both are refuted. Recording
+them prevents a future session re-deriving them.
+
+### 16.1 The constraint set does not drive convergence
+
+Sweeping the gradient-row count from 10 down to 1 — dead-row removal and every
+constraint horizon `Nc` from 6 to N, at N=10 and N=20 — leaves stiff-window
+convergence **flat at 16.1 %** (N=10) and **19.4 %** (N=20), with the applied
+move unchanged to about 1e−7 °C. `_condition()` row-normalises, so the
+constraint row-norm spread is √2 ≈ 1.41 in *every* configuration, and `cond(H)`
+is about 780 in both stiff and benign states. There is no conditioning headroom
+to recover here.
+
+A constraint horizon is therefore **not** adopted. The option remains available
+(`constraint_horizon=`) and is documented, but switching it on would reduce the
+constraint set without buying anything measurable.
+
+### 16.2 The l1 slack penalty is already exact
+
+Audited against Kerrigan and Maciejowski's condition rho > ‖λ*‖_inf across 159
+steps:
+
+| quantity | value |
+|---|---|
+| `slack_weight_lin` (rho) | 1000 |
+| max ‖λ*‖_inf on gradient rows | **1.15e−5** |
+| median ‖λ*‖_inf | 1.51e−7 |
+| steps where exactness holds | **100 %** (146/146 hard-feasible) |
+| max realised `u₀` soft − hard | 4.10e−6 °C |
+| hard-feasible steps (dead rows removed) | 91.8 % |
+
+The penalty exceeds the requirement by about 10⁸. Penalty scaling was never a
+defect, and re-tuning it would be wasted effort. The quadratic term
+(`slack_weight_quad=100`) is *never* exact at finite weight by construction; its
+realised contribution is the 4.1e−6 °C above, which is negligible here.
+
+Artifact: `results/exact_penalty_audit.json`.
+
+## 17. `k0_scale` needs no re-tune
+
+| `k0_scale` | stiff convergence |
+|---|---|
+| 0.05 | 22.6 % |
+| **0.10** | **25.8 %** |
+| 0.50 | 19.4 % |
+| 0.90 | 16.1 % |
+
+Monotone away from 0.1 in both directions. The Revision-4 hypothesis that the
+step-size/feasibility relationship had inverted under 0.6.0 is **not supported**
+at the recommended configuration. The value stays at 0.1.
+
+## 18. What Revision 5 does not fix
+
+Stated plainly, because the temptation is to present the clipping result as
+closure:
+
+1. **Stiff-window convergence is 16.1 %, and this revision did not raise it.**
+   Every non-converged step terminates on `max_iterations` with the certificate
+   unmet, and more iterations demonstrably do not help. This is a limit of the
+   projected-gradient method on this QP.
+2. **N=20 still fails the certificate by about 113×.** Untouched.
+3. **The prediction model is still a frozen Jacobian**, over-predicting the
+   gradient by about 2 orders of magnitude ten steps out during gelation. This
+   is the root cause of the large slacks and, indirectly, of the 8.2 % of steps
+   that remain hard-infeasible. Fixing it means an LTV prediction
+   (re-linearising along the horizon) — a substantially larger change that
+   alters the condensation itself.
+4. **No terminal ingredient exists**, so there is still no recursive-feasibility
+   or nominal-stability guarantee — only step-wise feasibility, observed.
+5. **Compute is now 16.5× the baseline.** The SNN's case continues to rest
+   entirely on neuromorphic/FPGA execution.
+
+**Hardware remains held.** The Revision-4 gate was "stiff-window convergence
+comfortably above ~90 % with clipping in the low single digits". Clipping is now
+**0 %**, which clears half the gate; convergence at 16.1 % does not clear the
+other half.

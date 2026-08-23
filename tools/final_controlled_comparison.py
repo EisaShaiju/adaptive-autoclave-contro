@@ -62,19 +62,27 @@ CONFIG = {
     "trust_region": False,           # identical prediction model on both sides
     "soft_state_constraints": False,
     "k0_scale": 0.5,
+    # Gradient rows inside the plant's input-to-output dead time carry no
+    # decision variable (relative degree 5 -- see docs/PHASE4_VALIDATION_REPORT.md
+    # section 14). True omits them and reports them separately; False
+    # reproduces the pre-Revision-5 constraint set.
+    "drop_uncontrollable_rows": True,
+    "constraint_horizon": None,      # None = impose every live gradient row
     "label": "baseline",
 }
 
 
 def make_controllers(horizon):
     """Both controllers built from the SAME configuration dict."""
-    ctrl_cvx = MPCSolver(horizon=horizon, target_temp=TARGET_TEMP,
-                         trust_region=CONFIG["trust_region"],
-                         soft_state_constraints=CONFIG["soft_state_constraints"])
-    ctrl_snn = SNNMPCSolver(horizon=horizon, target_temp=TARGET_TEMP,
-                            trust_region=CONFIG["trust_region"],
-                            soft_state_constraints=CONFIG["soft_state_constraints"],
-                            k0_scale=CONFIG["k0_scale"])
+    shared = dict(
+        target_temp=TARGET_TEMP,
+        trust_region=CONFIG["trust_region"],
+        soft_state_constraints=CONFIG["soft_state_constraints"],
+        drop_uncontrollable_rows=CONFIG["drop_uncontrollable_rows"],
+        constraint_horizon=CONFIG["constraint_horizon"],
+    )
+    ctrl_cvx = MPCSolver(horizon=horizon, **shared)
+    ctrl_snn = SNNMPCSolver(horizon=horizon, k0_scale=CONFIG["k0_scale"], **shared)
     return ctrl_cvx, ctrl_snn
 
 
@@ -239,6 +247,9 @@ def snn_step(ctrl, x0, u_prev):
         return {
             "raw_control": u_out, "applied_control": u_out, "objective": None,
             "converged": False, "verified_converged": False, "iterations": 0,
+            "convergence_reason": "not_solved", "convergence_reason_class": "not_solved",
+            "kkt_residual": None, "kkt_tolerance": None,
+            "projection_budget_exhausted": False,
             "max_iterations": ctrl.solver_config.max_iterations,
             "constraint_residual_physical": None, "constraint_residual_scaled": None,
             "bound_violation": None, "n_clipped_variables": 0, "n_projections": 0,
@@ -281,6 +292,19 @@ def snn_step(ctrl, x0, u_prev):
         ub_viol = float(np.maximum(0.0, U_sol - const.TA_MAX).max())
         bound_violation = max(lb_viol, ub_viol)
 
+        # `converged=False` conflates three very different terminations, and
+        # conflating them is what hid the projection-budget defect for a whole
+        # revision (invariant 13). Record the class, not just the boolean:
+        #   projection_budget_exhausted -- the solver ABORTED mid-solve. A
+        #       budget defect, and fixable. This was 15/31 stiff steps at the
+        #       Revision-4 budget of 2000.
+        #   max_iterations              -- ran the full allowance without the
+        #       certificate firing. A genuine solver limit.
+        #   converged(...)              -- certificate met. Note it is a
+        #       CONJUNCTION of a KKT test and an objective-plateau test.
+        reason = str(result.convergence_reason)
+        reason_class = ("converged" if reason.startswith("converged")
+                        else reason.split("(")[0])
         hit_iter_cap = (result.convergence_reason == "max_iterations")
         feasible = constraint_residual_scaled <= ctrl.solver_config.convergence.feasibility_tol
         verified_converged = bool(result.converged) and feasible and not hit_iter_cap
@@ -288,6 +312,17 @@ def snn_step(ctrl, x0, u_prev):
         return {
             "raw_control": u_raw, "applied_control": u_out, "objective": objective_physical,
             "converged": bool(result.converged), "verified_converged": verified_converged,
+            "convergence_reason": reason, "convergence_reason_class": reason_class,
+            "kkt_residual": (float(result.kkt_residual)
+                             if getattr(result, "kkt_residual", None) is not None else None),
+            "kkt_tolerance": (float(result.kkt_tolerance)
+                              if getattr(result, "kkt_tolerance", None) is not None else None),
+            "projection_budget_exhausted": bool(
+                getattr(result, "projection_budget_exhausted", False)),
+            "n_grad_rows_kept": int(qp.gradient_rows["n_kept"]),
+            "relative_degree": int(qp.gradient_rows["relative_degree"]),
+            "unactionable_predicted_violation_degC": float(
+                qp.gradient_rows["unactionable_predicted_violation_degC"]),
             "iterations": int(result.iterations_used), "max_iterations": ctrl.solver_config.max_iterations,
             "constraint_residual_physical": constraint_residual_physical,
             "constraint_residual_scaled": constraint_residual_scaled,
@@ -307,6 +342,9 @@ def snn_step(ctrl, x0, u_prev):
         return {
             "raw_control": u_out, "applied_control": u_out, "objective": None,
             "converged": False, "verified_converged": False, "iterations": 0,
+            "convergence_reason": "not_solved", "convergence_reason_class": "not_solved",
+            "kkt_residual": None, "kkt_tolerance": None,
+            "projection_budget_exhausted": False,
             "max_iterations": ctrl.solver_config.max_iterations,
             "constraint_residual_physical": None, "constraint_residual_scaled": None,
             "bound_violation": None, "n_clipped_variables": 0, "n_projections": 0,
@@ -387,6 +425,15 @@ def run_scenario(name, disturbance_step, disturbance_magnitude, time_steps,
             "cvxpy_objective": r_cvx["objective"], "cvxpy_status": r_cvx["status"],
             "snn_objective": r_snn["objective"], "snn_converged": r_snn["converged"],
             "snn_verified_converged": r_snn["verified_converged"],
+            "snn_convergence_reason": r_snn.get("convergence_reason"),
+            "snn_convergence_reason_class": r_snn.get("convergence_reason_class"),
+            "snn_kkt_residual": r_snn.get("kkt_residual"),
+            "snn_kkt_tolerance": r_snn.get("kkt_tolerance"),
+            "snn_projection_budget_exhausted": r_snn.get("projection_budget_exhausted"),
+            "snn_relative_degree": r_snn.get("relative_degree"),
+            "snn_n_grad_rows_kept": r_snn.get("n_grad_rows_kept"),
+            "snn_unactionable_predicted_violation_degC":
+                r_snn.get("unactionable_predicted_violation_degC"),
             "snn_iterations": r_snn["iterations"], "snn_max_iterations": r_snn["max_iterations"],
             "snn_constraint_residual": r_snn["constraint_residual_physical"],
             "snn_constraint_residual_scaled": r_snn["constraint_residual_scaled"],
@@ -438,6 +485,33 @@ def compute_aggregate_metrics(rows, label):
         "max_abs_trajectory_difference": float(np.max(traj_diff)),
         "snn_convergence_rate_raw": n_converged_raw / len(rows),
         "snn_convergence_rate_verified": n_verified_converged / len(rows),
+        # Invariant 13: a bare convergence RATE is not interpretable. Break the
+        # non-converged steps down by WHY they stopped. `projection_budget_
+        # exhausted` means the solver aborted mid-solve -- a budget defect, and
+        # the thing that was silently costing half the stiff window before
+        # Revision 5. `max_iterations` means it ran the full allowance without
+        # the certificate firing, which is a genuine solver limit and does NOT
+        # respond to a larger budget.
+        "snn_termination_breakdown": {
+            cls: sum(1 for r in rows if r.get("snn_convergence_reason_class") == cls)
+            for cls in sorted({r.get("snn_convergence_reason_class")
+                               for r in rows if r.get("snn_convergence_reason_class")})
+        },
+        "n_projection_budget_exhausted": sum(
+            1 for r in rows if r.get("snn_projection_budget_exhausted")),
+        # Gradient rows omitted as structurally uncontrollable (relative degree),
+        # and the largest predicted excursion on those rows that no admissible
+        # input could have prevented. Reported so that removing the rows from
+        # the QP does not remove the physical fact from the record.
+        "gradient_constraint": {
+            "relative_degree": (rows[0].get("snn_relative_degree")
+                                if rows else None),
+            "n_gradient_rows_kept": (rows[0].get("snn_n_grad_rows_kept")
+                                     if rows else None),
+            "max_unactionable_predicted_violation_degC": max(
+                [r.get("snn_unactionable_predicted_violation_degC") or 0.0
+                 for r in rows] or [0.0]),
+        },
         "max_constraint_residual": float(np.max(residuals)) if residuals.size else None,
         "n_clipped_outputs": int(n_clipped), "pct_clipped_outputs": 100.0 * n_clipped / len(rows),
         "cvxpy_n_clipped_outputs": 0,  # no clipping mechanism exists in the CVXPY controller
@@ -492,16 +566,26 @@ def main():
     ap.add_argument("--trust-region", action="store_true")
     ap.add_argument("--soft", action="store_true")
     ap.add_argument("--k0-scale", type=float, default=0.5)
+    ap.add_argument("--keep-uncontrollable-rows", action="store_true",
+                    help="reproduce the pre-Revision-5 constraint set, i.e. keep "
+                         "the structurally-zero gradient rows inside the plant's "
+                         "dead time (for A/B comparison only)")
+    ap.add_argument("--constraint-horizon", type=int, default=None,
+                    help="impose gradient rows only for k < this value")
     ap.add_argument("--label", type=str, default=None)
     args = ap.parse_args()
 
     CONFIG["trust_region"] = args.trust_region
     CONFIG["soft_state_constraints"] = args.soft
     CONFIG["k0_scale"] = args.k0_scale
+    CONFIG["drop_uncontrollable_rows"] = not args.keep_uncontrollable_rows
+    CONFIG["constraint_horizon"] = args.constraint_horizon
     CONFIG["horizon"] = args.horizon
     CONFIG["label"] = args.label or (
         f"N{args.horizon}_{'soft' if args.soft else 'hard'}"
-        f"_{'tr' if args.trust_region else 'notr'}_k{args.k0_scale}")
+        f"_{'tr' if args.trust_region else 'notr'}_k{args.k0_scale}"
+        f"{'_keepdead' if args.keep_uncontrollable_rows else ''}"
+        f"{'' if args.constraint_horizon is None else f'_Nc{args.constraint_horizon}'}")
     print(f"CONFIG: {CONFIG}\n")
 
     provenance = capture_provenance(horizon=args.horizon)

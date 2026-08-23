@@ -11,7 +11,8 @@ from src.qp_builder import build_canonical_qp
 
 class MPCSolver:
     def __init__(self, horizon=20, target_temp=120.0, trust_region=False,
-                 soft_state_constraints=False):
+                 soft_state_constraints=False, drop_uncontrollable_rows=True,
+                 constraint_horizon=None):
         self.N = horizon
         self.nx = 10  # 7 Temps, 3 Alphas
         self.nu = 1   # 1 Input (Ta)
@@ -21,6 +22,10 @@ class MPCSolver:
         # SNNMPCSolver for the two controllers to be solving the same problem.
         self.trust_region = trust_region
         self.soft_state_constraints = soft_state_constraints
+        # Constraint-set options -- also part of the shared problem, and also
+        # subject to the identical-on-both-controllers rule.
+        self.drop_uncontrollable_rows = drop_uncontrollable_rows
+        self.constraint_horizon = constraint_horizon
 
         # Tuning Weights (canonical form: Q as a diagonal vector, R/S as
         # scalars -- matches SNNMPCSolver's Q_diag/R_val/S_val so both
@@ -49,6 +54,8 @@ class MPCSolver:
             self.Q_diag, self.R_val, self.S_val, self.target_temp,
             trust_region=self.trust_region,
             soft_state_constraints=self.soft_state_constraints,
+            drop_uncontrollable_rows=self.drop_uncontrollable_rows,
+            constraint_horizon=self.constraint_horizon,
         )
 
     def compute_control_action(self, current_state, u_prev):

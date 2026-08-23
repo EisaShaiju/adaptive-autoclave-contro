@@ -90,7 +90,15 @@ def main():
           f"k={stiff['k']} rho(Ap)={stiff['rho']:.4f}")
 
     # ---- HARD form: row-level algebraic infeasibility proof ----
-    ctrl_hard = SNNMPCSolver(horizon=N, target_temp=120.0, soft_state_constraints=False)
+    # `drop_uncontrollable_rows=False` is REQUIRED here and is not a default
+    # left over by accident: this probe exists to demonstrate the dead rows, so
+    # it must build the pre-Revision-5 constraint set that still contains them.
+    # With the shipped default those rows are absent and the 4*N+k / 5*N+k
+    # indexing below would silently address the wrong rows. The fix this probe
+    # motivated is in src/qp_builder.py; the probe stays pinned to the old form
+    # so its published finding remains reproducible.
+    ctrl_hard = SNNMPCSolver(horizon=N, target_temp=120.0, soft_state_constraints=False,
+                             drop_uncontrollable_rows=False)
     qp_hard = ctrl_hard.build_qp(stiff["x0"], stiff["u_prev"])
     C_hard = np.asarray(qp_hard.A_ineq)
     b_hard = np.asarray(qp_hard.b_ineq)

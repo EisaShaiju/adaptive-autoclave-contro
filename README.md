@@ -42,6 +42,11 @@ This research is divided into four main phases:
   - Proved the stiff-step infeasibility **exactly** rather than inferring it: the `k=0` gradient-constraint row is the *algebraic zero vector* for every state (`x₀` is pinned, so no future control can affect it), and rows `k=2,3,4` pair that with a negative RHS — `0 ≤ −225`, unsatisfiable for every `z`. No rescaling can repair a zero row.
   - Resolved the long-standing `n_projections = 0` anomaly as the **same** mechanism: the projector's degenerate-row guard skips those rows without incrementing its counter, so it re-selects the same dead row for all 8000 iterations.
   - Upgraded `snn_opt` 0.4.0 → **0.6.0**: formal convergence **0 % → 22.6–51.3 %**, all steps feasible, constraint residual down five orders, clipping down 3.5×, solve time down ~2.3×. Confirmed the pre-registered prediction that N=20 would *still* not converge.
+- [x] **Phase 5: Closing the stiff window** (Revision 5) — see [`docs/PHASE4_VALIDATION_REPORT.md`](docs/PHASE4_VALIDATION_REPORT.md) §12
+  - Gave the zero-row infeasibility a **structural** name instead of a per-state observation: the constrained output $T_{c1}-T_{c3}$ has **relative degree 5**, so gradient rows k=0..4 are exactly zero at *every* state and *every* horizon. They are now omitted from the QP and reported separately. The unsatisfiable row set is **identical for N=5/10/15/20** — measured — so horizon length was never the cause and could never be the cure.
+  - **Eliminated output clipping entirely: 12.9 % → 0.0 %** in the stiff window (and 3.8 % → 0.0 % nominal). Root cause was `max_projection_iters=2000` acting as a watchdog that **aborted** the solve after ~130 of 8000 iterations on roughly half the stiff window, returning an inadmissible move the safety clip then rescued. 5000 removes every abort and saturates there. This answers the standing question about the 0.5.0 watchdog: it made the saturating-projection case *visible*, it did not fix it.
+  - **Ruled out two plausible fixes by measurement rather than argument.** Sweeping the constraint set from 10 gradient rows down to 1 leaves stiff convergence flat at 16.1 % — the constraint set does not drive convergence. And the ℓ1 slack penalty is already **exact on 100 % of hard-feasible steps** (Kerrigan & Maciejowski's ρ > ‖λ*‖, with ρ=1000 against max ‖λ*‖=1.15e−5), so penalty scaling was never a defect.
+  - Confirmed `k0_scale=0.1` is optimal of {0.05, 0.1, 0.5, 0.9} under 0.6.0 — no re-tune warranted, contrary to the working hypothesis that the step-size/feasibility relationship had inverted.
 
 ## Head-to-Head: SNN-QP vs CVXPY/OSQP
 
@@ -49,10 +54,10 @@ Both controllers driven by **one shared harness** — same initial state, same p
 
 **1. Closed-loop control quality** (disturbance scenario, 15 °C step at t=60):
 
-| Controller | Max Overshoot | Peak Cure Gradient | Gradient Violations | Compute/step |
+| Controller | Max Overshoot | Peak Cure Gradient | Gradient Violations | Compute/step (median) |
 |---|---|---|---|---|
-| CVXPY / OSQP | 13.77 °C | 0.3445 Δα | 2 | ~5.5 ms |
-| **SNN-QP (`snn_opt` 0.6.0)** | **13.23 °C** | **0.3417 Δα** | **2** | **~49 ms** |
+| CVXPY / OSQP | 13.77 °C | 0.3445 Δα | 2 | ~6.3 ms |
+| **SNN-QP (`snn_opt` 0.6.0, Rev. 5)** | **13.23 °C** | **0.3417 Δα** | **2** | **~105 ms** |
 
 Both reach full uniform cure (final α ≥ 0.9998 at every node) with zero actuator-limit violations. This cure gate is recorded per scenario in `summary.json` → `cure_gate`, because several failure modes in this project leave every other metric looking plausible while the part never cures.
 
@@ -65,21 +70,28 @@ Measured with `snn_opt` 0.6.0 (see *Solver dependency* below); 0.4.0 values in p
 | RMS applied-control difference | **0.707 °C** | 0.793 °C | 0.565 °C |
 | RMS closed-loop trajectory difference | **0.251** | 0.286 | 0.418 |
 | Max abs. control difference | 3.52 °C | 3.95 °C | 0.66 °C |
-| SNN max constraint residual | **3.46e−5** (1.55) | 1.92e−5 (2.07) | 1.92e−5 (1.55) |
-| **SNN formally converged** | **51.3 %** (0 %) | **46.9 %** (0 %) | **22.6 %** (0 %) |
-| Steps feasible enough to score objective gap | **100 %** (48.1 %) | 100 % (58.8 %) | 100 % (45.2 %) |
-| Mean objective gap (feasible steps only) | 6.72e−4 † | 2.65e−3 † | 2.56e−3 † |
-| Applied moves corrected by the safety clip | **3.8 %** (13.1 %) | 1.3 % (15.0 %) | **12.9 %** (29.0 %) |
-| Median solve time / ratio vs CVXPY | **48.7 ms — 8.9×** (113.8 — 19.8×) | 74.4 ms — 8.7× | 27.2 ms — 5.0× |
+| SNN max constraint residual | **7.6e−7** (3.46e−5) | 7.6e−7 (1.92e−5) | 6.8e−7 (1.92e−5) |
+| **SNN formally converged** ‡ | **50.0 %** (51.3 %) | **45.6 %** (46.9 %) | **16.1 %** (22.6 %) |
+| Solver aborts (`projection_budget_exhausted`) | **0** (present) | **0** (present) | **0** (≈half of steps) |
+| Steps feasible enough to score objective gap | **100 %** | 100 % | 100 % |
+| Mean objective gap (feasible steps only) | 5.89e−4 † | 4.67e−4 † | 2.57e−3 † |
+| **Applied moves corrected by the safety clip** | **0.0 %** (3.8 %) | **0.0 %** (1.3 %) | **0.0 %** (12.9 %) |
+| Median solve time / ratio vs CVXPY | **104.6 ms — 16.5×** (48.7 — 8.9×) | 176.9 ms — 25.5× | 425.9 ms — 43.7× |
+
+Revision-4 values in parentheses. The two changes behind this table are separated by experiment in `results/solver_budget_experiment.json` and `results/constraint_set_experiment.json`: **raising the projection budget eliminated the clipping and the aborts**; **removing the structurally-dead constraint rows changed no metric except the convergence rate**, for the reason in ‡.
+
+‡ **The convergence rate fell because the test got stricter, not because the answer got worse.** `snn_opt`'s KKT tolerance is `kkt_rel_tol × kkt_scale`, and dropping the dead rows shrinks `kkt_scale` (e.g. 341 → 302 at step 80), tightening the bar while the residual is unchanged. The applied move is identical to **1e−14 °C** across the two constraint sets. A corollary worth stating: convergence *rates* are not comparable across different constraint sets, because the threshold moves with the problem.
 
 † Not comparable to the 0.4.0 figures (1.05e−4 / 1.22e−4 / 5.02e−5), which averaged over only the ~half of steps that version could grade. Restricted to the **same** steps, 0.6.0 gives 1.215e−4 vs 0.4.0's 1.201e−4 — statistically identical. Coverage doubled; accuracy did not degrade.
 
 Against the pre-validation configuration (mismatched model, hard constraints, N=20): RMS control difference **16.005 → 0.707 °C** (−96 %), max **57.70 → 3.52 °C** (−94 %), max constraint residual **1.85e5 → 3.5e−5** (ten orders of magnitude).
 
 **Caveats stated up front, not buried:**
-- **Convergence is partial, not achieved — and worst where it matters.** 22.6 % in the stiff exotherm window, the regime the controller exists to handle. At the long horizon (N=20) the scale-invariant certificate still fails by a factor of **113** — a prediction recorded *before* the upgrade and then confirmed. This is why the verdict is still not "equivalent".
-- **The SNN is ~8.9× slower than OSQP on CPU** (48.7 vs 5.5 ms median, nominal). Improved from 19.8×, but no computational advantage is claimed anywhere. The SNN's actual case rests on neuromorphic/FPGA execution, which remains deferred. Timing is the one metric here that is not bit-reproducible — absolute medians move with machine load, the *ratio* holds to a few percent, so read the ratio.
-- **Those are medians, and the SNN's solve-time distribution has a long tail.** On the same nominal run the *mean* is 136.0 vs 5.9 ms — a **23.2×** ratio — with a worst step of 731.7 ms against CVXPY's 22.4 ms. Half the steps stop early on the KKT certificate and the rest run to the iteration budget, so the median flatters the SNN and the mean is the number a real-time budget would have to cover. Both are in `summary.json` → `timing_ms`. The standalone script `tests/test_snn_closed_loop.py` prints the **average** (~173 ms), which is this tail, not a disagreement with the 48.7 ms median.
+- **Convergence is partial, not achieved — and worst where it matters.** 16.1 % in the stiff exotherm window, the regime the controller exists to handle. Every non-converged step now terminates on `max_iterations`, and raising that does nothing: 8000 / 30000 / 100000 all give the identical rate at up to 12× the time. That residual is a genuine limit of the projected-gradient method on this QP, not a budget or formulation problem. At N=20 the certificate still fails by a factor of **113**. The verdict is not "equivalent".
+- **The gradient constraint's first five rows were never constraints at all.** `Ta` enters at the outer tooling node and diffuses inward one node per sample, so it cannot influence `Tc3` for 4 steps or `Tc1` for 6: the constrained output has **relative degree 5**, and rows k=0..4 have an exactly zero normal at every state and every horizon. Imposing them is what made the hard QP unconditionally infeasible and what starved the projection selector. They are now omitted and *reported* — see `gradient_constraint` in any `summary.json`. This is a documented MPC failure mode, not a novel one; MathWorks states the same rule for output constraints inside a plant's delay.
+- **The dropped rows still predict large excursions, and that is reported, not hidden.** `max_unactionable_predicted_violation_degC` reaches **391 °C** (nominal) — but read it as what it is: a *frozen-Jacobian prediction*, from a model measured to over-predict this quantity by two orders of magnitude during gelation (1798 °C predicted vs 6.8 °C actual, ten steps out). The **actual** nonlinear plant peaks at **28.9 °C** and exceeds the 10 °C limit on 3 of 160 steps.
+- **The SNN is now ~16.5× slower than OSQP on CPU overall and ~43.7× in the stiff window**, up from 8.9×/5.0×. This is a deliberate trade, not a regression: the old figure was fast *because the solver was aborting*. `projection_budget_exhausted` fired on roughly half the stiff window at the previous budget, returning an inadmissible move that the safety clip then had to rescue. Paying the full solve cost is what took clipping to zero. No computational advantage is claimed anywhere; the SNN's case rests on neuromorphic/FPGA execution, which remains deferred.
+- **Those are medians, and the solve-time distribution has a long tail.** Quote the ratio, not the milliseconds — timing is the one metric here that is not bit-reproducible. `tests/test_snn_closed_loop.py` prints the **average**, which is the tail, not a disagreement with the median.
 - **41.7 % of heat-up steps have *both* controllers pinned at the 4 °C/min slew limit** (77.4 % inside the stiff window). Agreement on those steps reflects a shared actuator limit, not solver agreement, and is excluded from the claim.
 - **Horizon is load-bearing.** `N=5` gives apparently perfect agreement (0.000 °C RMS, 98.8 % formal convergence) and is **degenerate** — it drives the oven to its 10 °C floor and the part never cures (α ≤ 1.0e−5, i.e. below reporting precision but not identically zero). Always check final α before reading agreement as success.
 

@@ -1,0 +1,221 @@
+{
+  "method": "Frozen stiff-exotherm states from one fixed CVXPY trajectory; the QP is identical across configurations and only the solver budget varies. Open-loop per-state measurements.",
+  "stiff_window": [
+    77,
+    108
+  ],
+  "shipped_config_note": "The repository ships max_projection_iters=5000 from Revision 5; 2000 was the Revision-4 value.",
+  "sweeps": {
+    "projection_budget": [
+      {
+        "max_projection_iters": 2000,
+        "max_iterations": 8000,
+        "k0_scale": 0.1,
+        "horizon": 10,
+        "n_states": 31,
+        "converged_pct": 16.129032258064516,
+        "median_ms": 9.812199998123106,
+        "convergence_reasons": {
+          "projection_budget_exhausted": 15,
+          "converged": 5,
+          "max_iterations": 11
+        },
+        "median_kkt_residual_over_tolerance": 0.5829874643746578
+      },
+      {
+        "max_projection_iters": 5000,
+        "max_iterations": 8000,
+        "k0_scale": 0.1,
+        "horizon": 10,
+        "n_states": 31,
+        "converged_pct": 25.806451612903224,
+        "median_ms": 297.94910000055097,
+        "convergence_reasons": {
+          "converged": 8,
+          "max_iterations": 23
+        },
+        "median_kkt_residual_over_tolerance": 0.5002841972801821
+      },
+      {
+        "max_projection_iters": 20000,
+        "max_iterations": 8000,
+        "k0_scale": 0.1,
+        "horizon": 10,
+        "n_states": 31,
+        "converged_pct": 25.806451612903224,
+        "median_ms": 296.8657999954303,
+        "convergence_reasons": {
+          "converged": 8,
+          "max_iterations": 23
+        },
+        "median_kkt_residual_over_tolerance": 0.5002841972801821
+      },
+      {
+        "max_projection_iters": 100000,
+        "max_iterations": 8000,
+        "k0_scale": 0.1,
+        "horizon": 10,
+        "n_states": 31,
+        "converged_pct": 25.806451612903224,
+        "median_ms": 303.5689999960596,
+        "convergence_reasons": {
+          "converged": 8,
+          "max_iterations": 23
+        },
+        "median_kkt_residual_over_tolerance": 0.5002841972801821
+      },
+      {
+        "max_projection_iters": 500000,
+        "max_iterations": 8000,
+        "k0_scale": 0.1,
+        "horizon": 10,
+        "n_states": 31,
+        "converged_pct": 25.806451612903224,
+        "median_ms": 299.52480000065407,
+        "convergence_reasons": {
+          "converged": 8,
+          "max_iterations": 23
+        },
+        "median_kkt_residual_over_tolerance": 0.5002841972801821
+      }
+    ],
+    "max_iterations": [
+      {
+        "max_projection_iters": 5000,
+        "max_iterations": 8000,
+        "k0_scale": 0.1,
+        "horizon": 10,
+        "n_states": 31,
+        "converged_pct": 25.806451612903224,
+        "median_ms": 301.9741999960388,
+        "convergence_reasons": {
+          "converged": 8,
+          "max_iterations": 23
+        },
+        "median_kkt_residual_over_tolerance": 0.5002841972801821
+      },
+      {
+        "max_projection_iters": 5000,
+        "max_iterations": 30000,
+        "k0_scale": 0.1,
+        "horizon": 10,
+        "n_states": 31,
+        "converged_pct": 25.806451612903224,
+        "median_ms": 1148.64729999681,
+        "convergence_reasons": {
+          "converged": 8,
+          "max_iterations": 23
+        },
+        "median_kkt_residual_over_tolerance": 0.5002841972801821
+      },
+      {
+        "max_projection_iters": 5000,
+        "max_iterations": 100000,
+        "k0_scale": 0.1,
+        "horizon": 10,
+        "n_states": 31,
+        "converged_pct": 25.806451612903224,
+        "median_ms": 5234.168200004206,
+        "convergence_reasons": {
+          "converged": 8,
+          "max_iterations": 23
+        },
+        "median_kkt_residual_over_tolerance": 0.5002841972801821
+      }
+    ],
+    "k0_scale": [
+      {
+        "max_projection_iters": 5000,
+        "max_iterations": 8000,
+        "k0_scale": 0.05,
+        "horizon": 10,
+        "n_states": 31,
+        "converged_pct": 22.580645161290324,
+        "median_ms": 412.7939000027254,
+        "convergence_reasons": {
+          "converged": 7,
+          "max_iterations": 24
+        },
+        "median_kkt_residual_over_tolerance": 0.26512037791704646
+      },
+      {
+        "max_projection_iters": 5000,
+        "max_iterations": 8000,
+        "k0_scale": 0.1,
+        "horizon": 10,
+        "n_states": 31,
+        "converged_pct": 25.806451612903224,
+        "median_ms": 424.5930000033695,
+        "convergence_reasons": {
+          "converged": 8,
+          "max_iterations": 23
+        },
+        "median_kkt_residual_over_tolerance": 0.5002841972801821
+      },
+      {
+        "max_projection_iters": 5000,
+        "max_iterations": 8000,
+        "k0_scale": 0.5,
+        "horizon": 10,
+        "n_states": 31,
+        "converged_pct": 19.35483870967742,
+        "median_ms": 538.693599999533,
+        "convergence_reasons": {
+          "converged": 6,
+          "max_iterations": 25
+        },
+        "median_kkt_residual_over_tolerance": 2.9900509442133
+      },
+      {
+        "max_projection_iters": 5000,
+        "max_iterations": 8000,
+        "k0_scale": 0.9,
+        "horizon": 10,
+        "n_states": 31,
+        "converged_pct": 16.129032258064516,
+        "median_ms": 515.2253999985987,
+        "convergence_reasons": {
+          "converged": 5,
+          "max_iterations": 26
+        },
+        "median_kkt_residual_over_tolerance": 8.97908585097576
+      }
+    ],
+    "benign_control": [
+      {
+        "max_projection_iters": 2000,
+        "max_iterations": 8000,
+        "k0_scale": 0.1,
+        "horizon": 10,
+        "n_states": 5,
+        "converged_pct": 60.0,
+        "median_ms": 53.7973000027705,
+        "convergence_reasons": {
+          "converged": 3,
+          "max_iterations": 2
+        },
+        "median_kkt_residual_over_tolerance": 0.24350684498177055
+      },
+      {
+        "max_projection_iters": 5000,
+        "max_iterations": 8000,
+        "k0_scale": 0.1,
+        "horizon": 10,
+        "n_states": 5,
+        "converged_pct": 60.0,
+        "median_ms": 63.229799998225644,
+        "convergence_reasons": {
+          "converged": 3,
+          "max_iterations": 2
+        },
+        "median_kkt_residual_over_tolerance": 0.24350684498177055
+      }
+    ]
+  },
+  "conclusions": {
+    "projection_budget": "2000 aborts roughly half the stiff window via projection_budget_exhausted after ~130 of 8000 iterations. 5000 removes every abort and saturates: 20000/100000/500000 give the identical rate.",
+    "max_iterations": "Not binding. 8000 -> 100000 changes nothing but costs ~12x the time. The residual non-converged steps plateau rather than run out of iterations.",
+    "k0_scale": "0.1 is the best of {0.05, 0.1, 0.5, 0.9} under snn_opt 0.6.0. No re-tune warranted.",
+    "cost": "Removing the aborts costs roughly 30x the stiff-window solve time. The previous speed was partly an artefact of aborting early."
+  }
+}

@@ -28,16 +28,36 @@ _HAS_KKT_CERTIFICATE = any(
 # instead of continuing. Under 0.6.0 the old budget of 200 aborts after ~1
 # outer iteration, the solver returns essentially its cold start, and the
 # closed loop STOPS CURING (measured: final alpha 0.0000, max Tc1 41.8 degC).
-# 2000 restores full cure (alpha 1.0000, max Tc1 137.84 degC) and is ~2.4x
-# faster than the legacy test at the same budget. See
-# docs/PHASE4_VALIDATION_REPORT.md section 11.1 and
-# results/kkt_certificate_probe.json.
-_MAX_PROJECTION_ITERS = 2000 if _HAS_KKT_CERTIFICATE else 200
+# 2000 restores full cure. See docs/PHASE4_VALIDATION_REPORT.md section 11.1
+# and results/kkt_certificate_probe.json.
+#
+# REVISION 5: 2000 was still too small, and this was the real stiff-window
+# defect. Measured on 31 frozen stiff-exotherm states (N=10, soft, k0=0.1),
+# `convergence_reason` was `projection_budget_exhausted` on 15 of 31 -- the
+# solver ABORTING after ~130 of its 8000 permitted iterations, not failing to
+# converge. Raising the budget to 5000 eliminates every such abort and lifts
+# formal convergence there from 16.1 % to 25.8 %. It saturates at 5000:
+# 20000, 100000 and 500000 all give exactly 25.8 %, so this is a real
+# threshold, not a knob to keep turning.
+#
+# The cost is large and must not be hidden: the median stiff-window solve goes
+# from ~9.5 ms to ~295 ms. That is not a regression -- the old figure was fast
+# BECAUSE the solver was giving up early. Part of the previously reported speed
+# was premature abort, and the corrected number is the true cost of attempting
+# the solve.
+#
+# The residual 74 % of stiff steps terminate on `max_iterations`, and raising
+# THAT does nothing: 8000 / 30000 / 100000 all give 25.8 % at 12x the time.
+# Those steps plateau without meeting the KKT test and are a genuine limit of
+# the projected-gradient method on this QP, not a budget problem.
+# See results/solver_budget_experiment.json.
+_MAX_PROJECTION_ITERS = 5000 if _HAS_KKT_CERTIFICATE else 200
 
 
 class SNNMPCSolver:
     def __init__(self, horizon=20, target_temp=120.0, trust_region=False,
-                 soft_state_constraints=False, k0_scale=0.5):
+                 soft_state_constraints=False, k0_scale=0.5,
+                 drop_uncontrollable_rows=True, constraint_horizon=None):
         self.N = horizon
         self.nx = 10
         self.nu = 1
@@ -50,6 +70,13 @@ class SNNMPCSolver:
         # trust_region=True is now an explicit opt-in, not a silent asymmetry.
         self.trust_region = trust_region
         self.soft_state_constraints = soft_state_constraints
+        # Constraint-set options -- also part of the shared problem, and also
+        # subject to the identical-on-both-controllers rule. Dropping the
+        # structurally-zero gradient rows is what stops snn_opt's projection
+        # selector from re-picking a dead row forever (the n_projections = 0
+        # anomaly); it is a correctness fix, not a solver tweak.
+        self.drop_uncontrollable_rows = drop_uncontrollable_rows
+        self.constraint_horizon = constraint_horizon
 
         _conv_common = dict(
             enable_early_stopping=True,
@@ -197,6 +224,8 @@ class SNNMPCSolver:
             self.Q_diag, self.R_val, self.S_val, self.target_temp,
             trust_region=self.trust_region,
             soft_state_constraints=self.soft_state_constraints,
+            drop_uncontrollable_rows=self.drop_uncontrollable_rows,
+            constraint_horizon=self.constraint_horizon,
         )
 
     def build_dense_qp(self, Ap, Bp, x0, u_prev):
@@ -209,6 +238,8 @@ class SNNMPCSolver:
             self.Q_diag, self.R_val, self.S_val, self.target_temp,
             trust_region=self.trust_region,
             soft_state_constraints=self.soft_state_constraints,
+            drop_uncontrollable_rows=self.drop_uncontrollable_rows,
+            constraint_horizon=self.constraint_horizon,
         )
         return qp.H, qp.f, qp.A_ineq, -qp.b_ineq
 
