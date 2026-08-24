@@ -850,6 +850,43 @@ infeasibility or a convergence failure to the solver. We would also suggest that
 constraint row be reported rather than deleted: the row we dropped still encodes a real physical
 prediction, and reporting it is what distinguishes a formulation fix from a quiet relaxation.
 
+**Two reversals, recorded because the reasoning that produced them was confident.** We report
+these in the body rather than as an appendix, because in both cases a plausible mechanism was
+identified, acted upon, and turned out to be wrong, and the pattern seems more transferable than
+the individual errors.
+
+The first concerned the constraint set. Having established that the dead rows starve the
+projection selector (§3.9), we expected their removal to improve convergence. It does not. It
+corrects the unconditional infeasibility, which is reason enough to do it, but it moves no metric
+except the convergence rate, and that only through the threshold effect of §3.10. A substantial
+amount of reasoning had been built on the expectation before it was measured. The general form of
+the error is treating a defect that is real as therefore being the *binding* defect.
+
+The second was more serious. Observing that stiff-window solves terminated faster and with fewer
+projections than benign ones, we inferred that the objective-plateau early-stopping rule was
+truncating the solve before the KKT test could fire, and disabled it to confirm this. Convergence
+fell to zero. The certificate is a *conjunction* of the KKT test and the plateau test, so removing
+the plateau term removes convergence entirely; the inference had the causality inverted. Reported
+uncritically, it would have asserted that the scale-invariant certificate does not fire, which is
+the opposite of what the data show. What resolved both this and the projection-budget defect was
+reading the solver's `convergence_reason` string rather than its boolean flag — a field that had
+been available and unread since the dependency upgrade.
+
+**The open question we could not close.** Every non-converged stiff-window step now terminates on
+`max_iterations` with the certificate unmet, and the iteration allowance is demonstrably not the
+constraint: 8000, 30 000 and 100 000 give an identical rate at up to twelve times the runtime.
+Those iterates plateau, and we do not have an account of why. The natural suspect is the
+prediction model, whose error we quantify at two orders of magnitude ten steps ahead (Table 5).
+But we are unable to connect that to the convergence behaviour: $\mathrm{cond}(H)$ is
+approximately 780 in both stiff and benign states, and the constraint-set sweep (§3.11) finds
+convergence insensitive to the QP's structure. The prediction is certainly wrong; whether
+repairing it would move the convergence rate is not established by anything we measured, and we
+decline to assert it. Four distinct interventions — dead-row removal, constraint-horizon
+restriction, penalty rescaling and step-size retuning — each left the stiff-window rate within a
+few points of where it started. It remains possible that the limitation is the projected-gradient
+iteration itself rather than the problem posed to it, in which case the productive question is not
+how to reformulate this QP but whether a different SNN construction suits this class of problem.
+
 **Limitations.** The horizon reduction that made the problem tractable was selected empirically
 rather than from the plant's thermal time constants. Softening the uniformity constraint weakens
 its guarantee, though the hard form it replaces is provably infeasible and therefore
