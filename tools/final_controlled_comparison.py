@@ -68,6 +68,12 @@ CONFIG = {
     # reproduces the pre-Revision-5 constraint set.
     "drop_uncontrollable_rows": True,
     "constraint_horizon": None,      # None = impose every live gradient row
+    # 'lti' (default): frozen Jacobian reused across the horizon. 'ltv':
+    # re-linearize at each horizon step along a nominal trajectory -- see
+    # README_LTV.md for why this branch exists and src/dynamics.py
+    # .linearize_trajectory for the mechanism. Must match on both
+    # controllers, same rule as every other entry in this dict.
+    "linearization_mode": "lti",
     "label": "baseline",
 }
 
@@ -80,6 +86,7 @@ def make_controllers(horizon):
         soft_state_constraints=CONFIG["soft_state_constraints"],
         drop_uncontrollable_rows=CONFIG["drop_uncontrollable_rows"],
         constraint_horizon=CONFIG["constraint_horizon"],
+        linearization_mode=CONFIG["linearization_mode"],
     )
     ctrl_cvx = MPCSolver(horizon=horizon, **shared)
     ctrl_snn = SNNMPCSolver(horizon=horizon, k0_scale=CONFIG["k0_scale"], **shared)
@@ -207,12 +214,20 @@ def cvxpy_step(ctrl, x0, u_prev):
         if U.value is None:
             u0 = float(u_prev)
             objective = None
+            ctrl._u_nominal = None
         else:
             u0 = float(U.value[0])
             objective = float(0.5 * U.value @ qp.H @ U.value + qp.f @ U.value)
+            # Mirrors compute_control_action's own bookkeeping (see
+            # src/mpc_cvxpy_controller.py) -- required for linearization_mode
+            # ='ltv' to actually advance the nominal trajectory step to step;
+            # without it every LTV solve here would silently fall back to a
+            # cold-start hold, understating what LTV mode can do.
+            ctrl._u_nominal = np.asarray(U.value[:ctrl.N], dtype=float)
     except Exception:
         t_solve = time.perf_counter()
         status, u0, objective = "exception", float(u_prev), None
+        ctrl._u_nominal = None
 
     build_ms = (t_build - t0) * 1000.0
     solve_ms = (t_solve - t_build) * 1000.0
@@ -242,6 +257,7 @@ def snn_step(ctrl, x0, u_prev):
 
     if not (np.isfinite(H_s).all() and np.isfinite(g_s).all()):
         ctrl.U_warm = None
+        ctrl._u_nominal = None
         u_out = float(np.clip(u_prev, const.TA_MIN, const.TA_MAX))
         build_ms = (time.perf_counter() - t0) * 1000.0
         return {
@@ -283,6 +299,7 @@ def snn_step(ctrl, x0, u_prev):
             n_clipped = 1
 
         ctrl.U_warm = ctrl._shift(U_sol)
+        ctrl._u_nominal = np.asarray(U_sol[:ctrl.N], dtype=float)
 
         # ---- Evaluate the MAPPED-BACK solution against the ORIGINAL canonical QP ----
         objective_physical = float(problem_raw.objective(U_sol))
@@ -338,6 +355,7 @@ def snn_step(ctrl, x0, u_prev):
     except Exception:
         t_err = time.perf_counter()
         ctrl.U_warm = None
+        ctrl._u_nominal = None
         u_out = float(np.clip(u_prev, const.TA_MIN, const.TA_MAX))
         return {
             "raw_control": u_out, "applied_control": u_out, "objective": None,
@@ -572,6 +590,11 @@ def main():
                          "dead time (for A/B comparison only)")
     ap.add_argument("--constraint-horizon", type=int, default=None,
                     help="impose gradient rows only for k < this value")
+    ap.add_argument("--linearization-mode", choices=["lti", "ltv"], default="lti",
+                    help="'lti': frozen Jacobian across the horizon (default, "
+                         "unchanged from before this branch). 'ltv': "
+                         "re-linearize at each horizon step along a nominal "
+                         "trajectory -- see README_LTV.md")
     ap.add_argument("--label", type=str, default=None)
     args = ap.parse_args()
 
@@ -580,12 +603,14 @@ def main():
     CONFIG["k0_scale"] = args.k0_scale
     CONFIG["drop_uncontrollable_rows"] = not args.keep_uncontrollable_rows
     CONFIG["constraint_horizon"] = args.constraint_horizon
+    CONFIG["linearization_mode"] = args.linearization_mode
     CONFIG["horizon"] = args.horizon
     CONFIG["label"] = args.label or (
         f"N{args.horizon}_{'soft' if args.soft else 'hard'}"
         f"_{'tr' if args.trust_region else 'notr'}_k{args.k0_scale}"
         f"{'_keepdead' if args.keep_uncontrollable_rows else ''}"
-        f"{'' if args.constraint_horizon is None else f'_Nc{args.constraint_horizon}'}")
+        f"{'' if args.constraint_horizon is None else f'_Nc{args.constraint_horizon}'}"
+        f"{'_ltv' if args.linearization_mode == 'ltv' else ''}")
     print(f"CONFIG: {CONFIG}\n")
 
     provenance = capture_provenance(horizon=args.horizon)

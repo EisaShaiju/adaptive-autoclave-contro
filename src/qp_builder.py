@@ -40,6 +40,17 @@ on CanonicalQP are +-inf and exist only as documented metadata.
 Ap, Bp by src/dynamics.linearize) and recorded in `linearization`; it is never
 re-derived here. It defaults to False on both controllers, so the
 model-identical configuration is the default.
+
+LTV (time-varying) prediction: `Ap`/`Bp` may each be passed as either a single
+(NX,NX)/(NX,) array -- the original frozen-Jacobian LTI behaviour, used by
+every existing caller and left byte-for-byte unmodified below to preserve the
+bit-identical-QP guarantee this module already carries -- or as a list/tuple
+of length N, one Jacobian per horizon step, produced by
+src.dynamics.linearize_trajectory. The LTV branch computes Phi/Gamma with the
+mathematically correct (non-commuting) time-varying recursion; it is a
+DIFFERENT code path, not a generalization of the LTI loop, specifically so
+the LTI numbers already validated in tests/test_qp_parity.py cannot drift by
+even a rounding error. See docs in the branch README for why this exists.
 """
 from dataclasses import dataclass
 import hashlib
@@ -119,16 +130,45 @@ def build_canonical_qp(Ap, Bp, x0, u_prev, N, Q_diag, R_val, S_val, target_temp,
     call this function, so they still receive bit-identical arrays; the parity
     claim is unaffected, but code that hard-codes `6N` rows is not.
     """
-    Phi = np.zeros((N * NX, NX))
-    Gamma = np.zeros((N * NX, N))
-    Ak = np.eye(NX)
-    for i in range(N):
-        Phi[i * NX:(i + 1) * NX, :] = Ak
-        Ad = np.eye(NX)
-        for j in range(i - 1, -1, -1):
-            Gamma[i * NX:(i + 1) * NX, j] = Ad @ Bp
-            Ad = Ad @ Ap
-        Ak = Ak @ Ap
+    ltv = isinstance(Ap, (list, tuple))
+    if ltv:
+        # Time-varying: Ap_seq[h]/Bp_seq[h] linearizes the transition FROM
+        # step h TO step h+1. Row i of Phi/Gamma predicts x_i, matching the
+        # LTI convention (row 0 = x0 itself). Ap's generally do NOT commute
+        # here, so the multiplication order is not optional the way it is in
+        # the LTI branch below -- see the worked 3-step derivation in
+        # tests/test_ltv_dynamics.py for why each product is built by
+        # PREPENDING the newest transition matrix.
+        Ap_seq, Bp_seq = Ap, Bp
+        if len(Ap_seq) != N or len(Bp_seq) != N:
+            raise ValueError(
+                f"LTV Ap/Bp sequence length must equal horizon N={N}, "
+                f"got {len(Ap_seq)}/{len(Bp_seq)}")
+        Phi = np.zeros((N * NX, NX))
+        Gamma = np.zeros((N * NX, N))
+        Ak = np.eye(NX)
+        for i in range(N):
+            Phi[i * NX:(i + 1) * NX, :] = Ak
+            Ad = np.eye(NX)
+            for j in range(i - 1, -1, -1):
+                Gamma[i * NX:(i + 1) * NX, j] = Ad @ Bp_seq[j]
+                Ad = Ap_seq[j] @ Ad
+            Ak = Ap_seq[i] @ Ak
+    else:
+        # Frozen-Jacobian LTI: unchanged since before LTV support existed.
+        # Do not touch -- this is the path tests/test_qp_parity.py verifies
+        # bit-identical across a full trajectory, and every existing caller
+        # (both controllers' default config, every tools/ probe) uses it.
+        Phi = np.zeros((N * NX, NX))
+        Gamma = np.zeros((N * NX, N))
+        Ak = np.eye(NX)
+        for i in range(N):
+            Phi[i * NX:(i + 1) * NX, :] = Ak
+            Ad = np.eye(NX)
+            for j in range(i - 1, -1, -1):
+                Gamma[i * NX:(i + 1) * NX, j] = Ad @ Bp
+                Ad = Ad @ Ap
+            Ak = Ak @ Ap
 
     Q_bar = np.kron(np.eye(N), np.diag(Q_diag))
     R_bar = np.eye(N) * R_val
@@ -297,10 +337,16 @@ def build_canonical_qp(Ap, Bp, x0, u_prev, N, Q_diag, R_val, S_val, target_temp,
         lower_bound=np.full(n_total, -np.inf), upper_bound=np.full(n_total, np.inf),
         variable_order=var_order,
         scaling=None,
-        linearization={
-            "Ap": Ap, "Bp": Bp, "trust_region": trust_region,
-            "avg_T": avg_T, "avg_a": avg_a,
-        },
+        linearization=(
+            {
+                "Ap": Ap[0], "Bp": Bp[0], "trust_region": trust_region,
+                "avg_T": avg_T, "avg_a": avg_a,
+                "mode": "ltv", "Ap_seq": Ap, "Bp_seq": Bp,
+            } if ltv else {
+                "Ap": Ap, "Bp": Bp, "trust_region": trust_region,
+                "avg_T": avg_T, "avg_a": avg_a, "mode": "lti",
+            }
+        ),
         reference={
             "x0": np.asarray(x0), "u_prev": float(u_prev), "N": N,
             "Q_diag": np.asarray(Q_diag), "R_val": R_val, "S_val": S_val,
