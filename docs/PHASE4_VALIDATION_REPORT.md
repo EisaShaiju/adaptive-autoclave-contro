@@ -2,7 +2,9 @@
 
 > **Read this first — sections 1–13 are Revision 4 and are preserved as a
 > record, not as current state.** Revision 5 is appended as sections 14–18 and
-> supersedes three figures wherever they appear above:
+> supersedes three figures wherever they appear above. Section 19 records the
+> research advisor's review of Revision 5 and the quick feasibility check it
+> requested (result: the LTV rewrite is recommended — see §19.3):
 >
 > | quantity | sections 1–13 say | current (section 15) |
 > |---|---|---|
@@ -1034,3 +1036,128 @@ closure:
 comfortably above ~90 % with clipping in the low single digits". Clipping is now
 **0 %**, which clears half the gate; convergence at 16.1 % does not clear the
 other half.
+
+## 19. Advisor review, and the quick feasibility check it asked for
+
+Section 18 left the LTV rewrite as an estimated week of work with no evidence
+it would help anything measured here. That estimate went to the project's
+research advisor along with the rest of Revision 5. His reading closes three
+of the four open questions in `docs/PROGRESS_UPDATE_REV4.md` §8 outright and
+narrows the fourth to a specific, bounded check before committing the week.
+
+**The three closed questions.** Convergence rate is a diagnostic, not a
+correctness measure or a blocker: the stiff steps are genuinely infeasible
+under the hard-constraint form (§14, §4.1 of the earlier revisions), and a
+genuinely infeasible step fails *any* solver's stopping test by construction,
+so 0 % clipping with every applied move solver-produced is an acceptable
+software-phase stopping point regardless of the convergence number. The
+projected-gradient method is not the ceiling — §16.1 already showed it
+reaches the right answer wherever the problem is well posed; the failures are
+infeasibility, not the solver, so the lever is the formulation. And the
+paper's contribution is the solver-equivalence claim under a
+neuromorphic-hardware-efficiency motivation, not controller performance —
+the prediction model is stated as a limitation and is not pursued further in
+this line of work, to avoid opening a controller-design front alongside the
+solver-comparison one.
+
+**The mechanism connecting §15.4 (LTV: it will not move convergence) and §18
+item 3 (frozen-Jacobian over-prediction).** These were previously reported as
+two separate, unconnected findings. The advisor's reading: they are the same
+phenomenon. The frozen model over-predicts the exotherm across the horizon,
+and that over-prediction is exactly what manufactures the huge slacks and the
+8.2 % hard-infeasible rate at stiff steps — an accurate prediction would not
+fix convergence, but it would shrink the *infeasible region* down to the few
+steps where the plant genuinely breaches the limit. This reframes the LTV
+rewrite as a **feasibility fix, not a convergence fix**, and makes it testable
+independently of the convergence question: before committing a week to it, do
+the frozen and the accurate prediction actually disagree about which rows are
+infeasible, on real stiff states?
+
+### 19.1 Method
+
+`tools/ltv_feasibility_probe.py`. One fixed CVXPY-driven trajectory (N=10,
+soft, `trust_region=False` — the recommended configuration, same harness
+pattern as `record_states()` in `tools/constraint_set_experiment.py`) is
+replayed and every `(state, applied control)` pair recorded. Six stiff-window
+states are selected by highest `rho(Ap)` (steps 87–92; this range brackets
+step 88, the state already cited in §14 as the reference point for the
+frozen-Jacobian over-prediction table).
+
+At each selected state `k`, holding the horizon and the **realised** control
+sequence `us[k:k+10]` fixed (both models see the identical input — this is
+the same quantity the constraint rows actually bound, not a zero-input free
+response):
+
+- **Linear**: propagate the frozen `(Ap, Bp)` from `src/dynamics.linearize`
+  exactly as `src/qp_builder.py`'s `Phi`/`Gamma` construction does (row `h`
+  predicts the state `h` steps ahead; row 0 is `x0` itself).
+- **Nonlinear**: deep-copy `AutoclavePlant`, seed it from state `k`, step it
+  forward with the same control sequence, read the actual `Tc1 - Tc3` at each
+  row.
+
+Each row is classified against `GRADIENT_MAX = 10 °C` (two-sided): **genuine**
+(both models predict a breach), **artifact** (only the linear model does),
+**missed** (only the nonlinear model does — the dangerous direction), or
+**clear** (neither does).
+
+### 19.2 Result
+
+Row-by-row for the six selected states (linear vs. actual `Tc1 - Tc3`, °C;
+`g`=genuine, `a`=artifact, `c`=clear):
+
+| step | h=0 | h=1 | h=2 | h=3 | h=4 | h=5 | h=6 | h=7 | h=8 | h=9 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 87 | −4.0/−4.0 c | −3.7/−3.6 c | 9.4/−2.5 c | 31.6/0.3 **a** | 63.9/8.2 **a** | 108.8/28.9 **g** | 170.5/14.9 **g** | 254.8/11.7 **g** | 369.7/9.8 **a** | 525.8/8.5 **a** |
+| 88 | −3.6/−3.6 c | −2.8/−2.5 c | 16.8/0.3 **a** | 54.6/8.2 **a** | 115.3/28.9 **g** | 206.8/14.9 **g** | 341.3/11.7 **g** | 536.3/9.8 **a** | 817.3/8.5 **a** | 1220.6/7.5 **a** |
+| 89 | −2.5/−2.5 c | 0.0/0.3 c | 31.3/8.2 **a** | 101.0/28.9 **g** | 226.6/14.9 **g** | 433.4/11.7 **g** | 759.1/9.8 **a** | 1260.5/8.5 **a** | 2024.5/7.5 **a** | 3183.9/6.8 **a** |
+| 90 | 0.3/0.3 c | 8.7/8.2 c | 62.1/28.9 **g** | 193.6/14.9 **g** | 445.2/11.7 **g** | 865.5/9.8 **a** | 1512.7/8.5 **a** | 2466.8/7.5 **a** | 3852.8/6.8 **a** | 5880.1/6.2 **a** |
+| 91 | 8.2/8.2 c | 29.8/28.9 **g** | 77.7/14.9 **g** | 154.0/11.7 **g** | 198.4/9.8 **a** | 147.6/8.5 **a** | 7.7/7.5 c | −118.0/6.8 **a** | −100.3/6.2 **a** | 60.1/5.7 **a** |
+| 92 | 28.9/28.9 **g** | 14.8/14.9 **g** | −20.9/11.7 **g** | 49.8/9.8 **a** | −94.5/8.5 **a** | 185.6/7.5 **a** | −328.1/6.8 **a** | 520.5/6.2 **a** | −582.5/5.7 **a** | −202.7/5.2 **a** |
+
+Aggregate over 60 rows (6 states × 10 horizon rows): **18 genuine, 31
+artifact, 0 missed, 11 clear**. Of the 49 rows the current builder would flag
+as a predicted violation, **63.3 % are artifacts** of the frozen-Jacobian
+prediction — the plant does not actually breach the limit there. Zero rows
+are missed: the frozen model never under-warns at these states, so nothing
+here weakens the existing safety case, only the feasibility one.
+
+The genuine and artifact rows are not scattered randomly. Genuine violations
+cluster tightly at the row that corresponds to the true exotherm peak at each
+state (the diagonal running from `h=5` at step 87 to `h=0` at step 92 —
+i.e., the same physical event, seen from further or nearer in the horizon).
+Every row further out than that peak is an artifact at every one of the six
+states: the frozen model keeps extrapolating the exotherm's *growth* — by
+step 92 it has gone unstable enough to swing sign every row (`rho(Ap) > 1`
+with the model's eigenstructure past gelation) — while the real plant is
+self-limiting and has already burned out. This matches, independently, the
+`h≈5` controllability floor and `h≈3` prediction-trustworthiness ceiling
+already reported in §"Future work" of the technical report: genuine rows sit
+almost exactly in the narrow band between them, and the frozen model is
+wrong on essentially everything past it.
+
+Artifact: `results/ltv_feasibility_check.json`.
+
+### 19.3 Reading
+
+This settles Q2 by the advisor's own stated test: **the feasible set does
+open up.** 63.3 % of what the hard-constraint form currently treats as a
+predicted violation, across six independently selected stiff states, is not
+a real plant behaviour — it is the frozen Jacobian extrapolating an exotherm
+that has already turned over. An accurate (LTV) prediction would not
+eliminate the constraint set — a genuine core of violations remains, and it
+sits exactly where the earlier horizon-overlap argument said it would — but
+it would shrink the infeasible region substantially, which is the mechanism
+the advisor described and the earlier revisions could not connect on their
+own.
+
+This is a **feasibility finding, not a convergence one**, per the advisor's
+explicit caveat: nothing here is evidence the 16.1 % certificate rate would
+move. It is evidence that the constraint set the certificate is being judged
+against is partly synthetic, which is a different and independently
+worthwhile thing to fix.
+
+By the advisor's stated criterion ("if it does [open up], the week is worth
+it"), **the LTV rewrite is recommended as the next step**, scoped as a
+feasibility repair to the prediction model, not a convergence repair — see
+the technical report's revised Future Work section. This check does not
+implement that rewrite; it only establishes that it is worth doing.

@@ -872,20 +872,38 @@ the opposite of what the data show. What resolved both this and the projection-b
 reading the solver's `convergence_reason` string rather than its boolean flag — a field that had
 been available and unread since the dependency upgrade.
 
-**The open question we could not close.** Every non-converged stiff-window step now terminates on
-`max_iterations` with the certificate unmet, and the iteration allowance is demonstrably not the
-constraint: 8000, 30 000 and 100 000 give an identical rate at up to twelve times the runtime.
-Those iterates plateau, and we do not have an account of why. The natural suspect is the
-prediction model, whose error we quantify at two orders of magnitude ten steps ahead (Table 5).
-But we are unable to connect that to the convergence behaviour: $\mathrm{cond}(H)$ is
-approximately 780 in both stiff and benign states, and the constraint-set sweep (§3.11) finds
-convergence insensitive to the QP's structure. The prediction is certainly wrong; whether
-repairing it would move the convergence rate is not established by anything we measured, and we
-decline to assert it. Four distinct interventions — dead-row removal, constraint-horizon
-restriction, penalty rescaling and step-size retuning — each left the stiff-window rate within a
-few points of where it started. It remains possible that the limitation is the projected-gradient
-iteration itself rather than the problem posed to it, in which case the productive question is not
-how to reformulate this QP but whether a different SNN construction suits this class of problem.
+**The open question we could not close, and the advisor review that partly closed it.** Every
+non-converged stiff-window step terminates on `max_iterations` with the certificate unmet, and the
+iteration allowance is demonstrably not the constraint: 8000, 30 000 and 100 000 give an identical
+rate at up to twelve times the runtime. Those iterates plateau, and we do not have an account of
+why. Four distinct interventions — dead-row removal, constraint-horizon restriction, penalty
+rescaling and step-size retuning — each left the stiff-window rate within a few points of where it
+started; $\mathrm{cond}(H)$ is approximately 780 in both stiff and benign states. This part of the
+question remains open: it is possible that the limitation is the projected-gradient iteration
+itself rather than the problem posed to it, in which case the productive question is not how to
+reformulate this QP but whether a different SNN construction suits this class of problem. On
+review, our research advisor judged this unlikely — the method reaches the correct answer wherever
+the problem is well posed, and the stiff-window failures are an infeasibility property of the
+formulation, not a solver defect — so we do not pursue an alternative construction on this basis
+alone.
+
+What the same review did resolve is the connection we could not make ourselves: the prediction
+error we quantify at two orders of magnitude ten steps ahead (Table 5) and the stiff-step
+infeasibility of §3.3 are **the same phenomenon** — the frozen Jacobian over-predicts the exotherm
+across the horizon, and that over-prediction is what manufactures the large slacks and the
+hard-infeasible rate at stiff steps. This is a *feasibility* claim, not a convergence one, and we
+verified it directly rather than accepting it on argument: `tools/ltv_feasibility_probe.py` drives
+both the frozen-Jacobian prediction and a true non-linear rollout with the identical realised
+control sequence at six independently selected stiff states, and classifies each of the 60
+resulting horizon rows as a genuine violation (both models agree), an artifact (only the linear
+model predicts it), or missed (only the nonlinear model does — the dangerous direction). Result:
+18 genuine, 31 artifact, 0 missed, 11 clear. Of the 49 rows the current builder would treat as a
+predicted violation, **63.3 % are artifacts** of the frozen prediction, not real plant behaviour,
+and the artifacts are not scattered — every row past the row corresponding to each state's true
+exotherm peak is an artifact, while genuine rows cluster in a narrow band that lines up with the
+controllability floor and prediction-trustworthiness ceiling already identified below. Zero rows
+are missed, so nothing here weakens the safety case, only the feasibility one. Full method and
+per-state table: `docs/PHASE4_VALIDATION_REPORT.md` §19.
 
 **Limitations.** The horizon reduction that made the problem tractable was selected empirically
 rather than from the plant's thermal time constants. Softening the uniformity constraint weakens
@@ -904,6 +922,9 @@ to 16.5× the reference on CPU overall and 43.7× within the stiff window. The p
 remains a frozen Jacobian, which we measure over-predicting the constrained output by two orders
 of magnitude ten steps ahead during gelation; this, rather than the constraint or the penalty, is
 what generates the large slacks, and repairing it requires an LTV prediction we did not attempt.
+A bounded check (below) confirms this over-prediction is the dominant source of the flagged
+infeasibility rather than merely a measured curiosity, but the LTV prediction itself remains
+unimplemented.
 The formulation also has no terminal cost, terminal set or local controller, so we claim
 step-wise feasibility as observed and make no recursive-feasibility or nominal-stability claim.
 Finally, all results are in simulation against a digital twin of a single laminate geometry; no
@@ -928,13 +949,34 @@ is a substantially larger piece of work than anything attempted here. Constraint
 the manner of tube MPC would be the rigorous alternative. Adding terminal ingredients would,
 separately, supply the recursive-feasibility guarantee the controller currently lacks.
 
-Hardware implementation should continue to wait, but the reason has narrowed. The clipping
-objection is gone: every applied move is now solver-produced. What remains is that the
-convergence certificate fires on 16 % of steps in the regime the controller exists for, and that
-this residual is a property of the iteration rather than of any budget we can raise. A reasonable
-gate would be stiff-window convergence comfortably above 90 %, on a configuration that still
-cures the part; clipping in the low single digits, the other half of the Revision-2 gate, is
-already met at 0 %.
+Before committing to the LTV rewrite we ran a bounded check of its premise rather than its
+implementation: at six independently selected stiff states, does an accurate rollout actually
+disagree with the frozen prediction about which rows are infeasible? It does, substantially — 63 %
+of the rows the current builder flags as violations are artifacts of the frozen Jacobian rather
+than real plant behaviour, concentrated exactly past each state's true exotherm peak, with zero
+missed (dangerous-direction) rows (`docs/PHASE4_VALIDATION_REPORT.md` §19). On this evidence the
+LTV rewrite is recommended as the next step. It is a feasibility repair, not a convergence one: it
+should be expected to shrink the infeasible region and the resulting slack magnitudes, and it
+should not be expected to move the 16 % stiff-window convergence rate, which §3.11 already shows
+is insensitive to the constraint set's structure.
+
+On the question of contribution scope, our research advisor's reading — which we adopt — is that
+this report's contribution is the solver-equivalence claim under a neuromorphic-hardware-efficiency
+motivation (an SNN-QP solver reaching the same answer as a classical QP solver, cheaply
+implementable on event-driven hardware), not controller performance. On that framing the frozen
+prediction model is properly a stated limitation of the controller rather than a defect this report
+must resolve before publication, and we do not pursue further controller redesign here; the LTV
+rewrite above is noted as recommended future work rather than undertaken in this revision.
+
+Hardware implementation should continue to wait, but the reason has narrowed, and the gate itself
+was reconsidered. The clipping objection is gone: every applied move is now solver-produced, which
+was judged the harder of the two original Revision-2 conditions and is now met at 0 %. The
+remaining condition — stiff-window convergence comfortably above 90 % — was reassessed on review:
+convergence is a property of the stopping test applied to a problem that is genuinely infeasible at
+those steps, not a measure of whether the applied control is correct, so a low convergence rate on
+a stiff, infeasible-by-construction subset of steps is not on its own a reason to withhold hardware
+implementation. What still holds the hardware phase is sequencing, not a numeric gate: the write-up
+proceeds first, and hardware experiments are arranged separately once it is complete.
 The architectural argument for event-driven hardware is unaffected by any of this and remains
 the motivation for the work — on CPU the SNN is strictly worse than a mature classical solver,
 and it is only on a substrate that exploits its parallelism that the comparison becomes
