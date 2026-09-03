@@ -6,13 +6,13 @@ import numpy as np
 import cvxpy as cp
 import time
 import src.constants as const
-from src.dynamics import linearize
+from src.dynamics import linearize, linearize_trajectory, shift_nominal_sequence
 from src.qp_builder import build_canonical_qp
 
 class MPCSolver:
     def __init__(self, horizon=20, target_temp=120.0, trust_region=False,
                  soft_state_constraints=False, drop_uncontrollable_rows=True,
-                 constraint_horizon=None):
+                 constraint_horizon=None, linearization_mode='lti'):
         self.N = horizon
         self.nx = 10  # 7 Temps, 3 Alphas
         self.nu = 1   # 1 Input (Ta)
@@ -26,6 +26,20 @@ class MPCSolver:
         # subject to the identical-on-both-controllers rule.
         self.drop_uncontrollable_rows = drop_uncontrollable_rows
         self.constraint_horizon = constraint_horizon
+        # 'lti' (default): single frozen Jacobian reused across the horizon,
+        # unchanged from before LTV support existed. 'ltv': re-linearize at
+        # each horizon step along a nominal trajectory (src.dynamics
+        # .linearize_trajectory) -- see the branch README for why. MUST be
+        # set identically on both controllers, same rule as trust_region.
+        if linearization_mode not in ('lti', 'ltv'):
+            raise ValueError(f"linearization_mode must be 'lti' or 'ltv', got {linearization_mode!r}")
+        self.linearization_mode = linearization_mode
+        # The nominal control sequence LTV mode re-linearizes along. This is
+        # NOT a solver warm start (CVXPY manages its own via warm_start=True)
+        # -- it is part of the shared problem definition and must be
+        # computed identically to SNNMPCSolver's, or the two controllers'
+        # Ap_seq/Bp_seq (and therefore their QPs) silently diverge.
+        self._u_nominal = None
 
         # Tuning Weights (canonical form: Q as a diagonal vector, R/S as
         # scalars -- matches SNNMPCSolver's Q_diag/R_val/S_val so both
@@ -46,9 +60,13 @@ class MPCSolver:
         (src/qp_builder.py) -- the SAME construction the SNN adapter uses,
         so both controllers solve numerically identical (H, f, A_ineq, b_ineq)
         given the same (Ap, Bp, x0, u_prev). See docs/PHASE4_VALIDATION_REPORT.md §3."""
-        avg_T = np.mean(current_state[0:3])
-        avg_a = np.mean(current_state[7:10])
-        Ap, Bp = self.update_matrices(avg_T, avg_a)
+        if self.linearization_mode == 'ltv':
+            u_nominal = shift_nominal_sequence(self._u_nominal, u_prev, self.N)
+            Ap, Bp = linearize_trajectory(current_state, u_nominal, trust_region=self.trust_region)
+        else:
+            avg_T = np.mean(current_state[0:3])
+            avg_a = np.mean(current_state[7:10])
+            Ap, Bp = self.update_matrices(avg_T, avg_a)
         return build_canonical_qp(
             Ap, Bp, current_state, u_prev, self.N,
             self.Q_diag, self.R_val, self.S_val, self.target_temp,
@@ -79,9 +97,12 @@ class MPCSolver:
 
             if U.value is None:
                 print(f" MPC WARNING: Solver returned None. Falling back to previous input: {u_prev:.2f}°C")
+                self._u_nominal = None
                 return u_prev, solve_time
+            self._u_nominal = np.asarray(U.value[:self.N], dtype=float)
             return U.value[0], solve_time
         except Exception as e:
             print(f" MPC CRITICAL ERROR: Solver crashed! Exception: {e}")
             print(f" Falling back to previous input: {u_prev:.2f}°C")
+            self._u_nominal = None
             return u_prev, (time.time() - start_time) * 1000

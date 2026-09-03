@@ -8,7 +8,7 @@ import dataclasses
 import numpy as np
 import time
 import src.constants as const
-from src.dynamics import linearize
+from src.dynamics import linearize, linearize_trajectory, shift_nominal_sequence
 from src.qp_builder import build_canonical_qp
 import snn_opt
 from snn_opt import OptimizationProblem, SNNSolver, SolverConfig, ConvergenceConfig
@@ -57,7 +57,8 @@ _MAX_PROJECTION_ITERS = 5000 if _HAS_KKT_CERTIFICATE else 200
 class SNNMPCSolver:
     def __init__(self, horizon=20, target_temp=120.0, trust_region=False,
                  soft_state_constraints=False, k0_scale=0.5,
-                 drop_uncontrollable_rows=True, constraint_horizon=None):
+                 drop_uncontrollable_rows=True, constraint_horizon=None,
+                 linearization_mode='lti'):
         self.N = horizon
         self.nx = 10
         self.nu = 1
@@ -77,6 +78,21 @@ class SNNMPCSolver:
         # anomaly); it is a correctness fix, not a solver tweak.
         self.drop_uncontrollable_rows = drop_uncontrollable_rows
         self.constraint_horizon = constraint_horizon
+        # 'lti' (default): single frozen Jacobian reused across the horizon,
+        # unchanged from before LTV support existed. 'ltv': re-linearize at
+        # each horizon step along a nominal trajectory (src.dynamics
+        # .linearize_trajectory) -- see the branch README for why. MUST be
+        # set identically on both controllers, same rule as trust_region.
+        if linearization_mode not in ('lti', 'ltv'):
+            raise ValueError(f"linearization_mode must be 'lti' or 'ltv', got {linearization_mode!r}")
+        self.linearization_mode = linearization_mode
+        # The nominal control sequence LTV mode re-linearizes along. This is
+        # a SEPARATE concept from self.U_warm (this solver's own cold-start
+        # point for the projected-gradient iteration, in SCALED space) -- it
+        # is part of the shared problem definition and must be computed
+        # identically to MPCSolver's, or the two controllers' Ap_seq/Bp_seq
+        # silently diverge.
+        self._u_nominal = None
 
         _conv_common = dict(
             enable_early_stopping=True,
@@ -216,9 +232,13 @@ class SNNMPCSolver:
         what the controller must anticipate to brake in time); Jacobi
         preconditioning (_condition), applied downstream, keeps the condensed
         QP solvable without erasing that signal."""
-        avg_T = float(np.mean(current_state[0:3]))
-        avg_a = float(np.mean(current_state[7:10]))
-        Ap, Bp = self.update_matrices(avg_T, avg_a)
+        if self.linearization_mode == 'ltv':
+            u_nominal = shift_nominal_sequence(self._u_nominal, u_prev, self.N)
+            Ap, Bp = linearize_trajectory(current_state, u_nominal, trust_region=self.trust_region)
+        else:
+            avg_T = float(np.mean(current_state[0:3]))
+            avg_a = float(np.mean(current_state[7:10]))
+            Ap, Bp = self.update_matrices(avg_T, avg_a)
         return build_canonical_qp(
             Ap, Bp, current_state, u_prev, self.N,
             self.Q_diag, self.R_val, self.S_val, self.target_temp,
@@ -254,6 +274,7 @@ class SNNMPCSolver:
 
         if not (np.isfinite(H_s).all() and np.isfinite(g_s).all()):
             self.U_warm = None
+            self._u_nominal = None
             return float(np.clip(u_prev, const.TA_MIN, const.TA_MAX)), (time.time() - t0) * 1000.0
 
         n_total = H_raw.shape[0]
@@ -280,6 +301,7 @@ class SNNMPCSolver:
             self.n_infeasible_qp += 1
             self.last_infeasibility_reason = str(exc)
             self.U_warm = None
+            self._u_nominal = None
             return (float(np.clip(u_prev, const.TA_MIN, const.TA_MAX)),
                     (time.time() - t0) * 1000.0)
 
@@ -309,8 +331,10 @@ class SNNMPCSolver:
                 self.n_projection_active += 1
 
             self.U_warm = self._shift(U_sol)
+            self._u_nominal = np.asarray(U_sol[:self.N], dtype=float)
             return u_out, solve_time
 
         except Exception as exc:
             self.U_warm = None
+            self._u_nominal = None
             return float(np.clip(u_prev, const.TA_MIN, const.TA_MAX)), (time.time() - t0) * 1000.0
