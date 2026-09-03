@@ -1,0 +1,412 @@
+{
+  "method": "Advisor-directed quick check (not the full LTV rewrite): at each selected stiff-window state, the frozen-Jacobian LTI prediction and a true non-linear plant rollout are driven by the IDENTICAL realised control sequence from one fixed CVXPY trajectory (N=10, soft, trust_region=False), and each horizon row's predicted (Tc1-Tc3) is compared against the actual value at the GRADIENT_MAX=10 degC two-sided limit. This tests whether the frozen model's over-prediction of the exotherm is what empties the feasible set at stiff steps.",
+  "config": {
+    "horizon": 10,
+    "stiff_window": [
+      77,
+      108
+    ],
+    "num_states": 6,
+    "anchor_step": 88,
+    "gradient_max_degC": 10.0
+  },
+  "states": [
+    {
+      "step": 87,
+      "rows": [
+        {
+          "h": 0,
+          "linear_grad_degC": -4.0095,
+          "actual_grad_degC": -4.0095,
+          "classification": "clear"
+        },
+        {
+          "h": 1,
+          "linear_grad_degC": -3.7004,
+          "actual_grad_degC": -3.5828,
+          "classification": "clear"
+        },
+        {
+          "h": 2,
+          "linear_grad_degC": 9.35,
+          "actual_grad_degC": -2.5159,
+          "classification": "clear"
+        },
+        {
+          "h": 3,
+          "linear_grad_degC": 31.5688,
+          "actual_grad_degC": 0.2956,
+          "classification": "artifact"
+        },
+        {
+          "h": 4,
+          "linear_grad_degC": 63.8498,
+          "actual_grad_degC": 8.1658,
+          "classification": "artifact"
+        },
+        {
+          "h": 5,
+          "linear_grad_degC": 108.795,
+          "actual_grad_degC": 28.8735,
+          "classification": "genuine"
+        },
+        {
+          "h": 6,
+          "linear_grad_degC": 170.5212,
+          "actual_grad_degC": 14.9163,
+          "classification": "genuine"
+        },
+        {
+          "h": 7,
+          "linear_grad_degC": 254.8253,
+          "actual_grad_degC": 11.6592,
+          "classification": "genuine"
+        },
+        {
+          "h": 8,
+          "linear_grad_degC": 369.6627,
+          "actual_grad_degC": 9.7595,
+          "classification": "artifact"
+        },
+        {
+          "h": 9,
+          "linear_grad_degC": 525.8469,
+          "actual_grad_degC": 8.4819,
+          "classification": "artifact"
+        }
+      ]
+    },
+    {
+      "step": 88,
+      "rows": [
+        {
+          "h": 0,
+          "linear_grad_degC": -3.5828,
+          "actual_grad_degC": -3.5828,
+          "classification": "clear"
+        },
+        {
+          "h": 1,
+          "linear_grad_degC": -2.775,
+          "actual_grad_degC": -2.5159,
+          "classification": "clear"
+        },
+        {
+          "h": 2,
+          "linear_grad_degC": 16.7888,
+          "actual_grad_degC": 0.2956,
+          "classification": "artifact"
+        },
+        {
+          "h": 3,
+          "linear_grad_degC": 54.5569,
+          "actual_grad_degC": 8.1658,
+          "classification": "artifact"
+        },
+        {
+          "h": 4,
+          "linear_grad_degC": 115.2709,
+          "actual_grad_degC": 28.8735,
+          "classification": "genuine"
+        },
+        {
+          "h": 5,
+          "linear_grad_degC": 206.8289,
+          "actual_grad_degC": 14.9163,
+          "classification": "genuine"
+        },
+        {
+          "h": 6,
+          "linear_grad_degC": 341.3007,
+          "actual_grad_degC": 11.6592,
+          "classification": "genuine"
+        },
+        {
+          "h": 7,
+          "linear_grad_degC": 536.3053,
+          "actual_grad_degC": 9.7595,
+          "classification": "artifact"
+        },
+        {
+          "h": 8,
+          "linear_grad_degC": 817.2556,
+          "actual_grad_degC": 8.4819,
+          "classification": "artifact"
+        },
+        {
+          "h": 9,
+          "linear_grad_degC": 1220.5954,
+          "actual_grad_degC": 7.5099,
+          "classification": "artifact"
+        }
+      ]
+    },
+    {
+      "step": 89,
+      "rows": [
+        {
+          "h": 0,
+          "linear_grad_degC": -2.5159,
+          "actual_grad_degC": -2.5159,
+          "classification": "clear"
+        },
+        {
+          "h": 1,
+          "linear_grad_degC": -0.0283,
+          "actual_grad_degC": 0.2956,
+          "classification": "clear"
+        },
+        {
+          "h": 2,
+          "linear_grad_degC": 31.289,
+          "actual_grad_degC": 8.1658,
+          "classification": "artifact"
+        },
+        {
+          "h": 3,
+          "linear_grad_degC": 101.0084,
+          "actual_grad_degC": 28.8735,
+          "classification": "genuine"
+        },
+        {
+          "h": 4,
+          "linear_grad_degC": 226.6296,
+          "actual_grad_degC": 14.9163,
+          "classification": "genuine"
+        },
+        {
+          "h": 5,
+          "linear_grad_degC": 433.4219,
+          "actual_grad_degC": 11.6592,
+          "classification": "genuine"
+        },
+        {
+          "h": 6,
+          "linear_grad_degC": 759.0637,
+          "actual_grad_degC": 9.7595,
+          "classification": "artifact"
+        },
+        {
+          "h": 7,
+          "linear_grad_degC": 1260.4975,
+          "actual_grad_degC": 8.4819,
+          "classification": "artifact"
+        },
+        {
+          "h": 8,
+          "linear_grad_degC": 2024.4961,
+          "actual_grad_degC": 7.5099,
+          "classification": "artifact"
+        },
+        {
+          "h": 9,
+          "linear_grad_degC": 3183.8677,
+          "actual_grad_degC": 6.7804,
+          "classification": "artifact"
+        }
+      ]
+    },
+    {
+      "step": 90,
+      "rows": [
+        {
+          "h": 0,
+          "linear_grad_degC": 0.2956,
+          "actual_grad_degC": 0.2956,
+          "classification": "clear"
+        },
+        {
+          "h": 1,
+          "linear_grad_degC": 8.6588,
+          "actual_grad_degC": 8.1658,
+          "classification": "clear"
+        },
+        {
+          "h": 2,
+          "linear_grad_degC": 62.1055,
+          "actual_grad_degC": 28.8735,
+          "classification": "genuine"
+        },
+        {
+          "h": 3,
+          "linear_grad_degC": 193.6113,
+          "actual_grad_degC": 14.9163,
+          "classification": "genuine"
+        },
+        {
+          "h": 4,
+          "linear_grad_degC": 445.2198,
+          "actual_grad_degC": 11.6592,
+          "classification": "genuine"
+        },
+        {
+          "h": 5,
+          "linear_grad_degC": 865.4622,
+          "actual_grad_degC": 9.7595,
+          "classification": "artifact"
+        },
+        {
+          "h": 6,
+          "linear_grad_degC": 1512.7093,
+          "actual_grad_degC": 8.4819,
+          "classification": "artifact"
+        },
+        {
+          "h": 7,
+          "linear_grad_degC": 2466.7855,
+          "actual_grad_degC": 7.5099,
+          "classification": "artifact"
+        },
+        {
+          "h": 8,
+          "linear_grad_degC": 3852.7921,
+          "actual_grad_degC": 6.7804,
+          "classification": "artifact"
+        },
+        {
+          "h": 9,
+          "linear_grad_degC": 5880.0509,
+          "actual_grad_degC": 6.1804,
+          "classification": "artifact"
+        }
+      ]
+    },
+    {
+      "step": 91,
+      "rows": [
+        {
+          "h": 0,
+          "linear_grad_degC": 8.1658,
+          "actual_grad_degC": 8.1658,
+          "classification": "clear"
+        },
+        {
+          "h": 1,
+          "linear_grad_degC": 29.7972,
+          "actual_grad_degC": 28.8735,
+          "classification": "genuine"
+        },
+        {
+          "h": 2,
+          "linear_grad_degC": 77.6628,
+          "actual_grad_degC": 14.9163,
+          "classification": "genuine"
+        },
+        {
+          "h": 3,
+          "linear_grad_degC": 154.0151,
+          "actual_grad_degC": 11.6592,
+          "classification": "genuine"
+        },
+        {
+          "h": 4,
+          "linear_grad_degC": 198.3595,
+          "actual_grad_degC": 9.7595,
+          "classification": "artifact"
+        },
+        {
+          "h": 5,
+          "linear_grad_degC": 147.5679,
+          "actual_grad_degC": 8.4819,
+          "classification": "artifact"
+        },
+        {
+          "h": 6,
+          "linear_grad_degC": 7.6843,
+          "actual_grad_degC": 7.5099,
+          "classification": "clear"
+        },
+        {
+          "h": 7,
+          "linear_grad_degC": -118.0338,
+          "actual_grad_degC": 6.7804,
+          "classification": "artifact"
+        },
+        {
+          "h": 8,
+          "linear_grad_degC": -100.3323,
+          "actual_grad_degC": 6.1804,
+          "classification": "artifact"
+        },
+        {
+          "h": 9,
+          "linear_grad_degC": 60.1452,
+          "actual_grad_degC": 5.6663,
+          "classification": "artifact"
+        }
+      ]
+    },
+    {
+      "step": 92,
+      "rows": [
+        {
+          "h": 0,
+          "linear_grad_degC": 28.8735,
+          "actual_grad_degC": 28.8735,
+          "classification": "genuine"
+        },
+        {
+          "h": 1,
+          "linear_grad_degC": 14.7794,
+          "actual_grad_degC": 14.9163,
+          "classification": "genuine"
+        },
+        {
+          "h": 2,
+          "linear_grad_degC": -20.9257,
+          "actual_grad_degC": 11.6592,
+          "classification": "genuine"
+        },
+        {
+          "h": 3,
+          "linear_grad_degC": 49.7545,
+          "actual_grad_degC": 9.7595,
+          "classification": "artifact"
+        },
+        {
+          "h": 4,
+          "linear_grad_degC": -94.4862,
+          "actual_grad_degC": 8.4819,
+          "classification": "artifact"
+        },
+        {
+          "h": 5,
+          "linear_grad_degC": 185.5713,
+          "actual_grad_degC": 7.5099,
+          "classification": "artifact"
+        },
+        {
+          "h": 6,
+          "linear_grad_degC": -328.0576,
+          "actual_grad_degC": 6.7804,
+          "classification": "artifact"
+        },
+        {
+          "h": 7,
+          "linear_grad_degC": 520.4971,
+          "actual_grad_degC": 6.1804,
+          "classification": "artifact"
+        },
+        {
+          "h": 8,
+          "linear_grad_degC": -582.5027,
+          "actual_grad_degC": 5.6663,
+          "classification": "artifact"
+        },
+        {
+          "h": 9,
+          "linear_grad_degC": -202.7175,
+          "actual_grad_degC": 5.2001,
+          "classification": "artifact"
+        }
+      ]
+    }
+  ],
+  "row_counts": {
+    "genuine": 18,
+    "artifact": 31,
+    "missed": 0,
+    "clear": 11
+  },
+  "artifact_fraction_of_flagged": 0.6326530612244898
+}
