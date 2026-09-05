@@ -12,7 +12,8 @@ from src.qp_builder import build_canonical_qp
 class MPCSolver:
     def __init__(self, horizon=20, target_temp=120.0, trust_region=False,
                  soft_state_constraints=False, drop_uncontrollable_rows=True,
-                 constraint_horizon=None, linearization_mode='lti'):
+                 constraint_horizon=None, linearization_mode='lti',
+                 ltv_nominal_source='warm_start'):
         self.N = horizon
         self.nx = 10  # 7 Temps, 3 Alphas
         self.nu = 1   # 1 Input (Ta)
@@ -34,6 +35,20 @@ class MPCSolver:
         if linearization_mode not in ('lti', 'ltv'):
             raise ValueError(f"linearization_mode must be 'lti' or 'ltv', got {linearization_mode!r}")
         self.linearization_mode = linearization_mode
+        # Where the LTV nominal sequence comes from (ignored under 'lti').
+        # 'warm_start' (default): shift THIS controller's own previous solve
+        # by one step -- the standard successive-linearization convention,
+        # and what every result in README_LTV.md before the ablation section
+        # used. 'constant': always hold u_prev across the horizon, i.e. never
+        # read self._u_nominal -- removes the path-dependent memory of the
+        # controller's own solve history, isolating whether that memory (as
+        # opposed to LTV re-linearization itself) is what grew the RMS
+        # applied-control difference between the two controllers (README_LTV
+        # .md Caveat 2). Must be set identically on both controllers, same
+        # rule as trust_region.
+        if ltv_nominal_source not in ('warm_start', 'constant'):
+            raise ValueError(f"ltv_nominal_source must be 'warm_start' or 'constant', got {ltv_nominal_source!r}")
+        self.ltv_nominal_source = ltv_nominal_source
         # The nominal control sequence LTV mode re-linearizes along. This is
         # NOT a solver warm start (CVXPY manages its own via warm_start=True)
         # -- it is part of the shared problem definition and must be
@@ -61,7 +76,8 @@ class MPCSolver:
         so both controllers solve numerically identical (H, f, A_ineq, b_ineq)
         given the same (Ap, Bp, x0, u_prev). See docs/PHASE4_VALIDATION_REPORT.md §3."""
         if self.linearization_mode == 'ltv':
-            u_nominal = shift_nominal_sequence(self._u_nominal, u_prev, self.N)
+            prior = self._u_nominal if self.ltv_nominal_source == 'warm_start' else None
+            u_nominal = shift_nominal_sequence(prior, u_prev, self.N)
             Ap, Bp = linearize_trajectory(current_state, u_nominal, trust_region=self.trust_region)
         else:
             avg_T = np.mean(current_state[0:3])

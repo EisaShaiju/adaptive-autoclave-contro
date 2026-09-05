@@ -58,7 +58,7 @@ class SNNMPCSolver:
     def __init__(self, horizon=20, target_temp=120.0, trust_region=False,
                  soft_state_constraints=False, k0_scale=0.5,
                  drop_uncontrollable_rows=True, constraint_horizon=None,
-                 linearization_mode='lti'):
+                 linearization_mode='lti', ltv_nominal_source='warm_start'):
         self.N = horizon
         self.nx = 10
         self.nu = 1
@@ -86,6 +86,12 @@ class SNNMPCSolver:
         if linearization_mode not in ('lti', 'ltv'):
             raise ValueError(f"linearization_mode must be 'lti' or 'ltv', got {linearization_mode!r}")
         self.linearization_mode = linearization_mode
+        # Where the LTV nominal sequence comes from (ignored under 'lti').
+        # See src/mpc_cvxpy_controller.py's constructor comment -- must be
+        # set identically on both controllers, same rule as trust_region.
+        if ltv_nominal_source not in ('warm_start', 'constant'):
+            raise ValueError(f"ltv_nominal_source must be 'warm_start' or 'constant', got {ltv_nominal_source!r}")
+        self.ltv_nominal_source = ltv_nominal_source
         # The nominal control sequence LTV mode re-linearizes along. This is
         # a SEPARATE concept from self.U_warm (this solver's own cold-start
         # point for the projected-gradient iteration, in SCALED space) -- it
@@ -233,7 +239,8 @@ class SNNMPCSolver:
         preconditioning (_condition), applied downstream, keeps the condensed
         QP solvable without erasing that signal."""
         if self.linearization_mode == 'ltv':
-            u_nominal = shift_nominal_sequence(self._u_nominal, u_prev, self.N)
+            prior = self._u_nominal if self.ltv_nominal_source == 'warm_start' else None
+            u_nominal = shift_nominal_sequence(prior, u_prev, self.N)
             Ap, Bp = linearize_trajectory(current_state, u_nominal, trust_region=self.trust_region)
         else:
             avg_T = float(np.mean(current_state[0:3]))

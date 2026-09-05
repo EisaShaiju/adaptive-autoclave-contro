@@ -178,6 +178,54 @@ def main():
     check("LTV mode: gradient_rows agree",
           qp_cvx.gradient_rows["kept"] == qp_snn.gradient_rows["kept"])
 
+    # ---- 5. ltv_nominal_source='constant' ignores solve history ----------
+    # Uses the STIFF state (step 88, gelation): the plant's self-heating there
+    # makes the rollout genuinely sensitive to the nominal Ta sequence, unlike
+    # the benign mid-heatup state used in section 4, where a Ta offset barely
+    # moves the visited-state Jacobians within 10 steps.
+    print("\n--- 5. ltv_nominal_source ablation switch ---")
+    u_prev_stiff = 55.0
+    ctrl_warm = MPCSolver(horizon=10, target_temp=TARGET_TEMP,
+                           soft_state_constraints=True, linearization_mode='ltv',
+                           ltv_nominal_source='warm_start')
+    ctrl_const = MPCSolver(horizon=10, target_temp=TARGET_TEMP,
+                            soft_state_constraints=True, linearization_mode='ltv',
+                            ltv_nominal_source='constant')
+    # Seed both with a DIFFERENT prior solve than a plain hold at u_prev would
+    # give -- if 'constant' is truly ignoring it, its QP must be unaffected.
+    distinct_prior = np.full(10, const.TA_MIN)
+    ctrl_warm._u_nominal = distinct_prior.copy()
+    ctrl_const._u_nominal = distinct_prior.copy()
+
+    qp_warm = ctrl_warm.build_qp(stiff_state, u_prev_stiff)
+    qp_const = ctrl_const.build_qp(stiff_state, u_prev_stiff)
+    Ap_noprior, Bp_noprior = linearize_trajectory(
+        stiff_state, shift_nominal_sequence(None, u_prev_stiff, 10), trust_region=False)
+    qp_const_noprior = build_canonical_qp(
+        Ap_noprior, Bp_noprior, stiff_state, u_prev_stiff, 10,
+        Q_diag=ctrl_const.Q_diag, R_val=ctrl_const.R_val, S_val=ctrl_const.S_val,
+        target_temp=ctrl_const.target_temp, trust_region=False,
+        soft_state_constraints=ctrl_const.soft_state_constraints,
+        drop_uncontrollable_rows=ctrl_const.drop_uncontrollable_rows)
+
+    # H/A_ineq turn out to be INSENSITIVE to the nominal sequence at this
+    # state -- verified separately: Gamma (hence H and the GGamma block of
+    # A_ineq) is built only from Ap_seq/Bp_seq products, and the entries the
+    # two nominals' Ap_seq disagree on (the temp<->alpha exotherm coupling)
+    # never enter the composite-temp component of that product within this
+    # horizon; only Phi@x0 (hence f and b_ineq, the free-response terms) sees
+    # them, because x0's own alpha components are already non-zero at this
+    # stiff state. So the informative check is f/b_ineq, not H.
+    check("'warm_start' with a displaced prior differs from a constant-u_prev nominal (f)",
+          not np.allclose(qp_warm.f, qp_const.f, atol=1e-6),
+          f"max|df|={np.max(np.abs(qp_warm.f - qp_const.f)):.3e}")
+    check("'warm_start' with a displaced prior differs from a constant-u_prev nominal (b_ineq)",
+          not np.allclose(qp_warm.b_ineq, qp_const.b_ineq, atol=1e-6),
+          f"max|db_ineq|={np.max(np.abs(qp_warm.b_ineq - qp_const.b_ineq)):.3e}")
+    check("'constant' with a displaced prior matches the no-prior (hold u_prev) QP exactly",
+          np.allclose(qp_const.H, qp_const_noprior.H, atol=1e-12)
+          and np.allclose(qp_const.f, qp_const_noprior.f, atol=1e-12))
+
     print("\n" + "=" * 60)
     if failures:
         print(f"RESULT: {len(failures)} CHECK(S) FAILED")
