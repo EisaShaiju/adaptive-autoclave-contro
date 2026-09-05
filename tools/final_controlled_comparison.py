@@ -74,6 +74,14 @@ CONFIG = {
     # .linearize_trajectory for the mechanism. Must match on both
     # controllers, same rule as every other entry in this dict.
     "linearization_mode": "lti",
+    # Ignored under 'lti'. 'warm_start' (default): each controller
+    # re-linearizes along a shift of ITS OWN previous solve -- see
+    # README_LTV.md Caveat 2 for the path-dependent-memory side effect this
+    # introduces. 'constant': always hold u_prev across the horizon instead,
+    # removing that memory -- the ablation isolating whether it (rather than
+    # LTV re-linearization itself) is what grows the RMS applied-control
+    # difference between the two controllers.
+    "ltv_nominal_source": "warm_start",
     "label": "baseline",
 }
 
@@ -87,6 +95,7 @@ def make_controllers(horizon):
         drop_uncontrollable_rows=CONFIG["drop_uncontrollable_rows"],
         constraint_horizon=CONFIG["constraint_horizon"],
         linearization_mode=CONFIG["linearization_mode"],
+        ltv_nominal_source=CONFIG["ltv_nominal_source"],
     )
     ctrl_cvx = MPCSolver(horizon=horizon, **shared)
     ctrl_snn = SNNMPCSolver(horizon=horizon, k0_scale=CONFIG["k0_scale"], **shared)
@@ -595,6 +604,13 @@ def main():
                          "unchanged from before this branch). 'ltv': "
                          "re-linearize at each horizon step along a nominal "
                          "trajectory -- see README_LTV.md")
+    ap.add_argument("--ltv-nominal-source", choices=["warm_start", "constant"], default="warm_start",
+                    help="ignored under --linearization-mode lti. 'warm_start' "
+                         "(default): re-linearize along each controller's own "
+                         "shifted previous solve. 'constant': hold u_prev across "
+                         "the horizon instead -- ablation isolating the "
+                         "path-dependent-memory mechanism named in README_LTV.md "
+                         "Caveat 2")
     ap.add_argument("--label", type=str, default=None)
     args = ap.parse_args()
 
@@ -604,13 +620,15 @@ def main():
     CONFIG["drop_uncontrollable_rows"] = not args.keep_uncontrollable_rows
     CONFIG["constraint_horizon"] = args.constraint_horizon
     CONFIG["linearization_mode"] = args.linearization_mode
+    CONFIG["ltv_nominal_source"] = args.ltv_nominal_source
     CONFIG["horizon"] = args.horizon
     CONFIG["label"] = args.label or (
         f"N{args.horizon}_{'soft' if args.soft else 'hard'}"
         f"_{'tr' if args.trust_region else 'notr'}_k{args.k0_scale}"
         f"{'_keepdead' if args.keep_uncontrollable_rows else ''}"
         f"{'' if args.constraint_horizon is None else f'_Nc{args.constraint_horizon}'}"
-        f"{'_ltv' if args.linearization_mode == 'ltv' else ''}")
+        f"{'_ltv' if args.linearization_mode == 'ltv' else ''}"
+        f"{'_constnom' if args.linearization_mode == 'ltv' and args.ltv_nominal_source == 'constant' else ''}")
     print(f"CONFIG: {CONFIG}\n")
 
     provenance = capture_provenance(horizon=args.horizon)

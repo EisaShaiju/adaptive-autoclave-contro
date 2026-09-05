@@ -61,11 +61,18 @@ rather than smoothed over.
   `linearization_mode='lti'|'ltv'` (default `'lti'`, so nothing changes for
   any existing caller). In `'ltv'` mode, `build_qp()` computes a nominal
   control sequence and calls `linearize_trajectory` instead of a single
-  `linearize()` call.
+  `linearize()` call. A second new parameter, `ltv_nominal_source=
+  'warm_start'|'constant'` (default `'warm_start'`, ignored under `'lti'`),
+  controls where that nominal sequence comes from -- see the ablation section
+  below for why this was added after the fact.
 - **`tools/final_controlled_comparison.py`**: new `--linearization-mode
   {lti,ltv}` flag, threaded through `CONFIG`/`make_controllers()`/the
   instrumented step functions, so a full closed-loop run can be regenerated
-  under either mode for direct comparison.
+  under either mode for direct comparison. Also `--ltv-nominal-source
+  {warm_start,constant}` (default `warm_start`, matching every result before
+  the ablation section below), added specifically to test Caveat 2's
+  hypothesis by removing the per-controller warm-started nominal without
+  changing anything else.
 - **`tests/test_ltv_dynamics.py`** (new): the LTV Phi/Gamma recursion is
   checked against an independent, hand-rolled forward simulation using three
   genuinely non-commuting Jacobians (a wrong multiplication order would fail
@@ -159,38 +166,86 @@ prediction explicitly, and ask him to weigh in before treating stiff-window
 convergence-under-LTV as settled either way. **This is the single most
 important open item for whoever reviews this branch.**
 
-### Caveat 2: the RMS applied-control difference grew, and the likely mechanism is named above
+### Caveat 2, updated: the RMS-difference hypothesis was tested directly, and it does not hold
 
-Under LTI, both controllers' Jacobian depends only on the current state, so
-even though the two closed loops are independent simulations, their
-prediction models carry no memory of each other's solve history. Under LTV,
-each controller's re-linearization is seeded from *its own* previous
-solution -- a path-dependent feedback loop that is absent in LTI. The RMS
-applied-control difference growing from ~0.6-0.8 degC to ~1.1-2.1 degC across
-all three scenarios is consistent with that mechanism amplifying the two
-solvers' small, pre-existing disagreement over time, rather than indicating
-either controller is newly wrong. This was not isolated further (e.g. by
-re-running with a shared, non-path-dependent nominal trajectory) in this
-branch -- see "What is still open" below.
+The original hypothesis (previous revision of this section): the RMS growth
+comes from each controller's LTV re-linearization being seeded from *its
+own* previous solve -- a path-dependent feedback loop absent in LTI, where
+the Jacobian depends only on the current state, not on solve history.
+
+This was named as a hypothesis, not measured. It has now been tested
+directly with the natural ablation: `ltv_nominal_source='constant'` (see
+"What changed, technically" above) makes both controllers always
+re-linearize along a nominal that just holds `u_prev` constant across the
+horizon, instead of shifting their own previous solve -- removing the
+path-dependent memory entirely while changing nothing else. Same recommended
+configuration (N=10, soft, k0_scale=0.1), same commit:
+
+```bash
+.venv/Scripts/python.exe tools/final_controlled_comparison.py --horizon 10 --soft --k0-scale 0.1 --linearization-mode ltv --ltv-nominal-source constant --label ltv_constnom
+```
+
+| metric | LTI | LTV (warm_start) | LTV (constant) | reading |
+|---|---|---|---|---|
+| RMS applied-control difference, nominal | 0.71 | 1.08 | 1.06 | **unchanged by removing the memory** |
+| RMS applied-control difference, disturbance | 0.79 | 2.12 | 1.89 | small drop, still far above LTI |
+| RMS applied-control difference, stiff window | 0.57 | 2.12 | 2.07 | **unchanged by removing the memory** |
+| SNN convergence, nominal | 50.0% | 56.25% | 56.25% | identical |
+| SNN convergence, disturbance | 45.6% | 50.0% | 49.4% | ~identical |
+| SNN convergence, stiff window | 16.1% | 41.9% | 41.9% | identical |
+| Cure completion | cured | cured | cured | unaffected |
+| Clipping | 0.0% | 0.0% | 0.0% | unaffected |
+
+**The hypothesis is refuted.** Removing the per-controller warm-started
+memory barely moves the RMS difference and does not move the convergence
+rate at all. Whatever grows the disagreement between the two controllers
+under LTV, it is not primarily the nominal *control* sequence's path
+dependence.
+
+The more likely mechanism, consistent with everything measured here: LTV
+re-linearizes at `N` points along a rollout **from the current state**,
+not just once at the current state the way LTI does. The two controllers'
+plants are already two independent simulations that drift apart slightly
+(one solves exactly, one approximately) -- true under LTI too. But under
+LTI that drift only ever perturbs a *single* Jacobian evaluation per step;
+under LTV the same drift perturbs the state at which *every one* of the
+`N` re-linearization points is evaluated, and those points feed into `Phi`
+(hence `f` and the constraint offsets `b_ineq`) through the current state's
+own already-nonzero cure/temperature components -- confirmed directly in
+`tests/test_ltv_dynamics.py` section 5, where two very different nominal
+control sequences at the same stiff state left `H`/`A_ineq` exactly
+unaffected but changed `f`/`b_ineq` by tens of units, because the plant's own
+existing cure state, not the commanded input, is what the differing
+Jacobians act on. LTV therefore appears to amplify **existing small-state
+divergence**, not to introduce a new one through its nominal-sequence
+bookkeeping. This is a stronger, evidence-backed account than the original
+hypothesis, but it was reasoned from the ablation's negative result, not
+confirmed by a second, independent positive test (e.g. deliberately forcing
+identical plant states on both sides and checking the RMS difference
+vanishes) -- that would be the natural next experiment.
 
 ## What is still open after this branch
 
 - **The stiff-window convergence result needs the advisor's review** before
   it is treated as a settled number (Caveat 1). Do not quote 41.9% as a
-  replacement for 16.1% in any headline table without that review.
-- **The RMS-difference growth was measured but not isolated.** Whether it
-  comes from the per-controller warm-started nominal trajectory specifically
-  (as hypothesized) rather than some other LTV side effect was not tested by
-  swapping in a shared or non-path-dependent nominal trajectory and
-  re-measuring. That would be the natural next experiment.
+  replacement for 16.1% in any headline table without that review. The
+  ablation above adds evidence relevant to that review: convergence under
+  LTV is completely insensitive to the nominal-sequence mechanism, so
+  whatever moved it is tied to the re-linearization itself, not this
+  particular design choice within it.
+- **The RMS-difference growth's mechanism is now narrowed, not fully
+  isolated.** The ablation rules out the warm-started nominal sequence as
+  the primary cause and points at LTV's amplification of pre-existing
+  inter-controller state divergence instead (see above), but that account
+  has not itself been directly tested (e.g. by forcing both controllers onto
+  one shared plant state and checking the difference disappears).
 - **Only the recommended configuration (N=10, soft, k0_scale=0.1) was run.**
   The N=20/hard/trust_region sweeps that exist for the LTI baseline
   (`results/final_comparison/`) were not repeated under LTV.
 - **No PDF/paper-grade writeup was produced for this branch.** The technical
   report and validation report on `main` describe the LTI results only, plus
   the pre-rewrite feasibility check; they have not been updated with this
-  branch's numbers, deliberately, until the two open items above are
-  resolved.
+  branch's numbers, deliberately, until the open items above are resolved.
 
 ## Reproducing this branch's results
 
@@ -204,6 +259,9 @@ PYTHONIOENCODING=utf-8 MPLBACKEND=Agg .venv/Scripts/python.exe tools/final_contr
 
 # LTV
 PYTHONIOENCODING=utf-8 MPLBACKEND=Agg .venv/Scripts/python.exe tools/final_controlled_comparison.py --horizon 10 --soft --k0-scale 0.1 --linearization-mode ltv --label ltv
+
+# LTV, nominal-source ablation (Caveat 2)
+PYTHONIOENCODING=utf-8 MPLBACKEND=Agg .venv/Scripts/python.exe tools/final_controlled_comparison.py --horizon 10 --soft --k0-scale 0.1 --linearization-mode ltv --ltv-nominal-source constant --label ltv_constnom
 ```
 
-Both write to `results/final_comparison/<commit>_<label>_<timestamp>/summary.json`.
+All three write to `results/final_comparison/<commit>_<label>_<timestamp>/summary.json`.
