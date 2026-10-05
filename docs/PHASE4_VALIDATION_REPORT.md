@@ -504,11 +504,23 @@ Source: `tools/kkt_certificate_probe.py` → `results/kkt_certificate_probe.json
 
 ## 6. Control and trajectory comparison — the three requested numbers
 
+> **Corrected (clean-tree regeneration, see §19.4).** This table's `3b`/
+> clipping/residual rows were frozen at a pre-Revision-5 snapshot and never
+> re-measured after the relative-degree dead-row fix (§14) and the
+> projection-budget fix (§15) — both of which affect nominal and disturbance
+> steps too, not only the stiff window the earlier text called out. The
+> **primary** values below are current (re-run from a clean, fully-committed
+> tree). Pre-Revision-5 values are kept in brackets as explicit historical
+> context — this is the same kind of reversal already recorded at §15.4 and
+> §16, not silently overwritten.
+
 Recommended configuration: **N = 10, soft state constraints, model-identical
 (`trust_region = False` both sides), `k0_scale = 0.1`**.
 
-Numbers below are **`snn_opt` 0.6.0** (current). The 0.4.0 values are given in
-parentheses where they differ materially — see §5.3 for the full comparison.
+Numbers below are **`snn_opt` 0.6.0, current (post-Revision-5) state**. Prior
+snapshots are given in brackets where they differ materially: `(0.4.0)` for
+the solver-library upgrade (see §5.3), `[pre-Rev.5]` for the relative-degree
+and projection-budget fixes (see §14, §15).
 
 | | nominal heat-up | disturbance @ 60 | stiff-exotherm window |
 |---|---|---|---|
@@ -516,16 +528,24 @@ parentheses where they differ materially — see §5.3 for the full comparison.
 | **2. RMS closed-loop trajectory difference** | **0.251** | **0.286** | **0.418** |
 | Max abs. control difference | 3.52 °C (3.57) | 3.95 °C | 0.66 °C |
 | Max abs. trajectory difference | 0.668 | 0.673 | 0.668 |
-| **3a. SNN max constraint residual** | **3.46e−5** (1.554) | **1.92e−5** (2.069) | **1.92e−5** (1.554) |
-| **3b. SNN formally converged** | **51.3 %** (0.0) | **46.9 %** (0.0) | **22.6 %** (0.0) |
+| **3a. SNN max constraint residual** | **3.5e−5** (1.554) [pre-Rev.5: 3.46e−5] | **1.9e−5** (2.069) [pre-Rev.5: 1.92e−5] | **6.8e−7** (1.554) [pre-Rev.5: 1.92e−5] |
+| **3b. SNN formally converged** | **50.0 %** (0.0) [pre-Rev.5: 51.3 %] | **45.6 %** (0.0) [pre-Rev.5: 46.9 %] | **16.1 %** (0.0) [pre-Rev.5: 22.6 %] |
 | Feasible steps (obj-gap computable) | 100 % (48.1) | 100 % (58.8) | 100 % (45.2) |
 | Mean objective gap on feasible steps | 6.72e−4 † | 2.65e−3 † | 2.56e−3 † |
-| Clipped outputs | 6 (3.8 %) | 2 (1.3 %) | 4 (12.9 %) |
+| Clipped outputs | **0 (0.0 %)** [pre-Rev.5: 6 (3.8 %)] | **0 (0.0 %)** [pre-Rev.5: 2 (1.3 %)] | **0 (0.0 %)** [pre-Rev.5: 4 (12.9 %)] |
 
 † **Not comparable to the 0.4.0 figures** (1.05e−4 / 1.22e−4 / 5.02e−5), which
 were averaged over only the ~half of steps that version could grade. On the
 *same* step subset, 0.6.0 gives 1.215e−4 and 1.347e−4 — statistically identical.
 See §5.3.
+
+**Why nominal/disturbance convergence moved too, not only stiff.** The
+relative-degree-5 dead rows (§14) are structurally zero at *every* operating
+point, not only stiff ones — so removing them shrinks `kkt_scale` (§15.4's
+mechanism) uniformly across the whole trajectory. §15.4 only ever measured
+and reported this shift for the stiff window; nominal and disturbance were
+never independently re-measured after the fix until this correction. Same
+solution, stricter threshold, in all three columns — not a regression.
 
 Against Revision 1 (hard constraints, mismatched model, N = 20): RMS control
 difference **16.005 → 0.714 °C** (−96 %), max control difference
@@ -1161,3 +1181,59 @@ it"), **the LTV rewrite is recommended as the next step**, scoped as a
 feasibility repair to the prediction model, not a convergence repair — see
 the technical report's revised Future Work section. This check does not
 implement that rewrite; it only establishes that it is worth doing.
+
+## 19.4 Clean-tree regeneration, and what it caught
+
+Before folding the LTV work into a paper draft, the three recommended-config
+runs (LTI, LTV warm-start, LTV constant-nominal) were re-run from a
+confirmed-clean, fully-committed tree (`git_working_tree_dirty_files: []`
+recorded in each run's `summary.json`, commit `f45e227`) — the discipline
+§"Reproducibility" already claims every number should satisfy, verified
+rather than assumed. Doing this caught the §6 staleness corrected above: a
+run from commit `6bb7dc2c` (before any LTV code existed) already shows
+50.0 % / 45.6 % nominal/disturbance convergence, proving the discrepancy
+predates the LTV work entirely — §6 was simply never re-measured in full
+after §14/§15 landed.
+
+### A second question, answered from data already in hand
+
+Rather than leave the 16.1 % stiff-window figure as an unexplained weak
+point, every non-converged stiff-window step was classified by **which half**
+of the convergence certificate it fails — the certificate is a conjunction
+(`converged = kkt(...) AND obj_plateau(...)`, invariant 13), so a step can
+fail the overall flag while its KKT half already passes comfortably.
+Classification is by the KKT half directly (`kkt_residual <= kkt_tolerance`,
+an objective fact already logged per step), with the independently-computed
+objective gap vs. a reference solve reported as supporting evidence, not the
+classifier itself. Method and artifact:
+`tools/stiff_convergence_diagnosis.py` → `results/stiff_convergence_diagnosis.json`.
+
+| | LTI | LTV (warm-start) |
+|---|---|---|
+| Stiff steps | 31 | 31 |
+| Formally converged | 5 (16.1 %) | 13 (41.9 %) |
+| Non-converged, KKT half already passes (blocked only by the plateau half) | 12 — objective gap median 1.6e−5, max 2.6e−4 | 6 — objective gap median 2.6e−5, max 1.2e−4 |
+| Non-converged, KKT half itself fails (genuinely unresolved within budget) | 14 — objective gap median 4.9e−3, max 1.9e−2 | 12 — objective gap median 4.5e−4, max 8.2e−3 |
+
+Combining "formally converged" with "KKT half already passes": **17 / 31
+(54.8 %) of LTI's stiff-window steps, and 19 / 31 (61.3 %) of LTV's, are
+effectively correct** — a reference-quality or near-reference-quality
+solution — even though the certified rate is 16.1 % / 41.9 %. The genuinely
+far-from-optimal minority is concentrated tightly: steps 77–87 (LTI) /
+78–85 (LTV), the window immediately approaching the true exotherm peak, plus
+a small tail (105–107 / 95–97, 101–102). This is the closest this project
+gets to a bounded, nameable sub-regime where the method is genuinely
+struggling, rather than an unexplained aggregate rate.
+
+**Reading.** Formal convergence is not a good proxy for solution quality in
+this stiff window — most of what it reports as failure is a stricter
+secondary test (the objective-plateau half) blocking certification of an
+already-correct answer, not evidence of a wrong one. The genuinely-hard
+minority is real, bounded, and physically locatable (pre-peak exotherm
+approach), which is a more useful and more honest characterization than the
+single 16.1 % figure on its own — and it is also evidence relevant to Caveat
+1 in `README_LTV.md`: LTV's higher certified rate is partly a genuine
+solution-quality improvement (the far-from-optimal group's gap shrinks by
+roughly an order of magnitude, 4.9e−3 → 4.5e−4 median) and partly the
+`kkt_scale` threshold effect already named there — both are real, neither
+alone explains the full 16.1 %→41.9 % jump.
