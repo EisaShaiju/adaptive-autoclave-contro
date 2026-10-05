@@ -534,20 +534,27 @@ rests on event-driven hardware, which this work does not evaluate.
 
 Table 3 gives the controlled comparison at the settled configuration.
 
+> **Corrected.** This table originally predated the relative-degree (§3.9)
+> and projection-budget (§3.10) fixes described later in this same section,
+> and was never re-measured afterward — an internal inconsistency caught
+> only when a clean-tree regeneration was cross-checked against it (see
+> `docs/PHASE4_VALIDATION_REPORT.md` §19.4). Values below are current;
+> pre-fix values are kept in brackets as historical context, not deleted.
+
 **Table 3.** Controlled head-to-head, horizon 10, soft state constraints, identical prediction
-model, scale-invariant certificate. Trajectory difference is the Euclidean norm over composite
-temperatures and cure states.
+model, scale-invariant certificate, post relative-degree and projection-budget fixes. Trajectory
+difference is the Euclidean norm over composite temperatures and cure states.
 
 | Metric | Nominal | Disturbance | Exotherm window |
 |---|---|---|---|
 | RMS applied-control difference | 0.707 °C | 0.793 °C | 0.565 °C |
 | RMS trajectory difference | 0.251 | 0.286 | 0.418 |
 | Max applied-control difference | 3.52 °C | 3.95 °C | 0.66 °C |
-| SNN max constraint residual | $3.5\times10^{-5}$ | $1.9\times10^{-5}$ | $1.9\times10^{-5}$ |
-| SNN formal convergence rate | 51.3 % | 46.9 % | 22.6 % |
+| SNN max constraint residual | $3.5\times10^{-5}$ | $1.9\times10^{-5}$ | $6.8\times10^{-7}$ [pre-fix: $1.9\times10^{-5}$] |
+| SNN formal convergence rate | 50.0 % [pre-fix: 51.3 %] | 45.6 % [pre-fix: 46.9 %] | 16.1 % [pre-fix: 22.6 %] |
 | Steps feasible enough to score objective gap | 100 % | 100 % | 100 % |
 | Mean objective gap on feasible steps | $6.7\times10^{-4}$ | $2.7\times10^{-3}$ | $2.6\times10^{-3}$ |
-| Applied moves corrected by safety filter | 3.8 % | 1.3 % | 12.9 % |
+| Applied moves corrected by safety filter | **0.0 %** [pre-fix: 3.8 %] | **0.0 %** [pre-fix: 1.3 %] | **0.0 %** [pre-fix: 12.9 %] |
 | Final degree of cure (cure gate) | 0.9999 | 0.9998 | — |
 
 Relative to the pre-correction configuration, RMS applied-control difference falls from 16.005 °C
@@ -556,10 +563,14 @@ ten orders of magnitude. Both controllers achieve full uniform cure with compara
 (13.77 °C baseline, 13.23 °C SNN) and identical actuator-limit compliance.
 
 The objective-gap row is not comparable to the corresponding row of the legacy configuration;
-see the like-for-like restriction in §3.5. The convergence row is the honest weak point of the
-study, and its shape matters more than its average: the stiff exotherm window, the single regime
-that motivates predictive control of this process at all, is where the certificate fires least
-often and where the safety filter intervenes most.
+see the like-for-like restriction in §3.5. The convergence row's shape matters more than its
+average: the stiff exotherm window, the single regime that motivates predictive control of this
+process at all, is where the certificate fires least often -- though the safety filter no longer
+intervenes there at all post-fix (0.0 % clipping in every scenario), and a per-step diagnosis
+(`docs/PHASE4_VALIDATION_REPORT.md` §19.4) shows a majority of the window's nominally
+non-converged steps are already numerically exact, blocked only by the certificate's stricter
+plateau half rather than by a wrong answer. The genuinely unresolved minority is narrow and
+physically locatable, clustered in the steps immediately approaching the true exotherm peak.
 
 **A cautionary configuration.** At horizon 5 the comparison appears flawless: RMS applied-control
 difference 0.000 °C, formal convergence 98.8 %, zero clipping, zero constraint violations. It is

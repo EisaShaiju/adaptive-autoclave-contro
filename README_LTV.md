@@ -166,6 +166,33 @@ prediction explicitly, and ask him to weigh in before treating stiff-window
 convergence-under-LTV as settled either way. **This is the single most
 important open item for whoever reviews this branch.**
 
+### Caveat 1, update: what the 16.1%/41.9% numbers actually contain
+
+Rather than leave the raw rate as an unexplained aggregate, every
+non-converged stiff-window step (both LTI and LTV) was classified by *which
+half* of the convergence certificate fails -- the certificate is a
+conjunction (`converged = kkt(...) AND obj_plateau(...)`, see
+`docs/PHASE4_VALIDATION_REPORT.md` invariant 13), so a step can fail the
+overall flag while its KKT half already passes comfortably. Method and
+artifact: `tools/stiff_convergence_diagnosis.py` →
+`results/stiff_convergence_diagnosis.json`.
+
+| | LTI | LTV (warm-start) |
+|---|---|---|
+| Formally converged | 5/31 (16.1%) | 13/31 (41.9%) |
+| Non-converged, KKT half already passes (effectively exact, blocked only by the plateau half) | 12/31 -- gap median 1.6e-5 | 6/31 -- gap median 2.6e-5 |
+| Non-converged, KKT half itself fails (genuinely unresolved) | 14/31 -- gap median 4.9e-3 | 12/31 -- gap median 4.5e-4 |
+| **Effectively correct (converged + KKT-passes)** | **17/31 (54.8%)** | **19/31 (61.3%)** |
+
+This reframes, but does not resolve, Caveat 1. The certified-rate jump
+(16.1%→41.9%, +25.8pp) is much larger than the effectively-correct-rate jump
+(54.8%→61.3%, +6.5pp) -- consistent with both confounds above being partly
+real: LTV's genuinely-far-from-optimal steps really are closer to optimal
+(gap median shrinks roughly 10x, 4.9e-3→4.5e-4), a real solution-quality
+improvement, but most of the certified-rate jump is still the `kkt_scale`
+threshold effect, not solution quality. Still advisor-pending; this narrows
+the question rather than closing it.
+
 ### Caveat 2, updated: the RMS-difference hypothesis was tested directly, and it does not hold
 
 The original hypothesis (previous revision of this section): the RMS growth
@@ -224,28 +251,77 @@ confirmed by a second, independent positive test (e.g. deliberately forcing
 identical plant states on both sides and checking the RMS difference
 vanishes) -- that would be the natural next experiment.
 
+### Caveat 2, confirmed in part: the shared-state ablation
+
+The natural next experiment above has now been run: `tools/shared_state_ablation.py`
+drives one shared `AutoclavePlant` (not two independent ones), with both
+controllers computing from the *identical* state and previous applied
+control every step -- only the CVXPY move is ever applied, so no independent
+state divergence is possible by construction. Run under both `lti` and `ltv`
+with this same harness (the correct control: isolates LTI-vs-LTV as the only
+variable, rather than comparing against the independent-plants numbers,
+which differ in harness design too). Artifact: `results/shared_state_ablation.json`.
+
+| | shared-state LTI | shared-state LTV | independent-plants LTI (context) | independent-plants LTV (context) |
+|---|---|---|---|---|
+| Stiff-window RMS control difference | 0.0075 | 0.4644 | 0.5654 | 2.1187 |
+
+**Partially confirmed.** Removing independent state divergence pulls LTV's
+stiff-window RMS down by ~4.6x (2.12→0.46) -- state-divergence amplification
+is real and is part of the mechanism. But it does not close the gap: even
+with both controllers seeing the *identical* input every step, LTV still
+disagrees ~62x more than LTI does (0.46 vs 0.0075) under this harness. Two
+things remain true and uncontrolled-for in this experiment: each controller
+still warm-starts its own LTV nominal sequence from its *own* previous
+solve (not a shared one -- only the plant state is shared here, not the
+nominal-sequence memory, which Caveat 2's original ablation already tested
+independently and found not to matter under the independent-plants harness);
+and the core LTV mechanism itself -- re-linearizing at `N` points per step
+instead of one -- is still active and still a plausible amplifier of
+whatever small algorithmic disagreement exists between an exact and an
+approximate solver at the *same* operating point, independent of any
+trajectory-level drift. Both hypotheses (state divergence, and the
+re-linearization mechanism itself) now have direct, partial, honest support;
+neither is fully isolated.
+
 ## What is still open after this branch
 
-- **The stiff-window convergence result needs the advisor's review** before
-  it is treated as a settled number (Caveat 1). Do not quote 41.9% as a
-  replacement for 16.1% in any headline table without that review. The
-  ablation above adds evidence relevant to that review: convergence under
-  LTV is completely insensitive to the nominal-sequence mechanism, so
-  whatever moved it is tied to the re-linearization itself, not this
-  particular design choice within it.
-- **The RMS-difference growth's mechanism is now narrowed, not fully
-  isolated.** The ablation rules out the warm-started nominal sequence as
-  the primary cause and points at LTV's amplification of pre-existing
-  inter-controller state divergence instead (see above), but that account
-  has not itself been directly tested (e.g. by forcing both controllers onto
-  one shared plant state and checking the difference disappears).
+- **The stiff-window convergence result still needs the advisor's review**
+  before it is treated as a settled number (Caveat 1). Do not quote 41.9% as
+  a straight replacement for 16.1% in any headline table without that
+  review. What's new: the per-step certificate diagnosis shows the 16.1%→
+  41.9% jump is only partly a solution-quality improvement (median gap on
+  the genuinely-hard steps shrinks ~10x under LTV) and mostly the
+  `kkt_scale` threshold effect -- narrower than before, still open.
+- **The RMS-difference growth's mechanism is now measured, not fully
+  isolated.** The shared-state ablation confirms state-divergence
+  amplification as *part* of the mechanism (removing it cuts the
+  stiff-window gap ~4.6x) but not all of it (a ~62x LTI-vs-LTV gap remains
+  even under identical shared inputs) -- see Caveat 2's update above for
+  what's still uncontrolled-for. A fully isolating experiment (shared state
+  *and* a forced-shared nominal sequence simultaneously) was not run.
+- **A convergence-certificate diagnosis now exists** (`tools/stiff_convergence_diagnosis.py`)
+  showing roughly 55-61% of stiff-window steps are effectively correct even
+  though only 16-42% are formally certified -- the genuinely-unresolved
+  minority is narrow and physically locatable (steps immediately approaching
+  the true exotherm peak). This is new evidence, not previously in this
+  document, and materially reframes how weak the "16.1%" headline number
+  should be read as.
 - **Only the recommended configuration (N=10, soft, k0_scale=0.1) was run.**
   The N=20/hard/trust_region sweeps that exist for the LTI baseline
   (`results/final_comparison/`) were not repeated under LTV.
-- **No PDF/paper-grade writeup was produced for this branch.** The technical
-  report and validation report on `main` describe the LTI results only, plus
-  the pre-rewrite feasibility check; they have not been updated with this
-  branch's numbers, deliberately, until the open items above are resolved.
+- **An FPGA open-loop replay is in progress** (Ameer's Kria KV260, same
+  `snn_opt` algorithm in HLS/fixed-point) using `tools/export_fpga_qp_dump.py`'s
+  output -- explicitly scoped to timing/energy at matched accuracy, not the
+  convergence-certification question, per his own stated caveat that the
+  FPGA inherits the same certificate behavior as the software solver.
+- **A paper-grade writeup now exists** (`paper/main_tii.tex`, targeting IEEE
+  Transactions on Industrial Informatics), incorporating this branch's
+  numbers and both findings above as a new Results subsection rather than a
+  caveat -- no longer "deliberately not updated," but still carries
+  placeholder author fields pending Ameer's and Prof. Shuai Li's details,
+  and the stiff-window convergence question above is stated in the paper as
+  explicitly open, not settled.
 
 ## Reproducing this branch's results
 
@@ -262,6 +338,21 @@ PYTHONIOENCODING=utf-8 MPLBACKEND=Agg .venv/Scripts/python.exe tools/final_contr
 
 # LTV, nominal-source ablation (Caveat 2)
 PYTHONIOENCODING=utf-8 MPLBACKEND=Agg .venv/Scripts/python.exe tools/final_controlled_comparison.py --horizon 10 --soft --k0-scale 0.1 --linearization-mode ltv --ltv-nominal-source constant --label ltv_constnom
+
+# Convergence-certificate diagnosis (Caveat 1 update) -- point at any of the
+# three run directories above
+PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe tools/stiff_convergence_diagnosis.py results/final_comparison/<lti_run_dir> results/final_comparison/<ltv_run_dir>
+
+# Shared-state ablation (Caveat 2 update)
+PYTHONIOENCODING=utf-8 MPLBACKEND=Agg .venv/Scripts/python.exe tools/shared_state_ablation.py
+
+# FPGA QP export (per-step arrays for Ameer's Kria KV260 run)
+PYTHONIOENCODING=utf-8 MPLBACKEND=Agg .venv/Scripts/python.exe tools/export_fpga_qp_dump.py
 ```
 
-All three write to `results/final_comparison/<commit>_<label>_<timestamp>/summary.json`.
+All three `final_controlled_comparison.py` runs write to
+`results/final_comparison/<commit>_<label>_<timestamp>/summary.json`. The
+diagnosis writes `results/stiff_convergence_diagnosis.json`; the shared-state
+ablation writes `results/shared_state_ablation.json`; the FPGA export writes
+`results/fpga_export/<commit>_<scenario>.npz` plus a `README.txt` explaining
+every array.

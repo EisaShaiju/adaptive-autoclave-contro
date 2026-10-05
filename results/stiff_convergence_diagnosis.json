@@ -1,0 +1,184 @@
+{
+  "f45e2273_clean_lti_20260915_011818": {
+    "n_stiff_steps": 31,
+    "n_converged": 5,
+    "n_nonconverged": 26,
+    "kkt_half_passes_blocked_by_plateau": {
+      "steps": [
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        97,
+        98,
+        99,
+        100,
+        101
+      ],
+      "n": 12,
+      "objective_gap": {
+        "n_with_gap": 12,
+        "n_total": 12,
+        "min": 3.4279179176998893e-06,
+        "median": 1.6345174728251284e-05,
+        "max": 0.00025875517980153873,
+        "mean": 7.856092865795263e-05
+      }
+    },
+    "kkt_half_fails_genuinely_unresolved": {
+      "steps": [
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        105,
+        106,
+        107
+      ],
+      "n": 14,
+      "objective_gap": {
+        "n_with_gap": 14,
+        "n_total": 14,
+        "min": 0.0004035077856192115,
+        "median": 0.004932169651732977,
+        "max": 0.019393265461025707,
+        "mean": 0.005590214581767582
+      }
+    },
+    "no_kkt_certificate_data": {
+      "steps": [],
+      "n": 0
+    },
+    "window": {
+      "lo": 77,
+      "hi": 108
+    },
+    "git_commit": "f45e22737d1146b3f94b7a0cc556be71d4d0736c"
+  },
+  "f45e2273_clean_ltv_20260915_011806": {
+    "n_stiff_steps": 31,
+    "n_converged": 13,
+    "n_nonconverged": 18,
+    "kkt_half_passes_blocked_by_plateau": {
+      "steps": [
+        86,
+        88,
+        89,
+        90,
+        98,
+        104
+      ],
+      "n": 6,
+      "objective_gap": {
+        "n_with_gap": 6,
+        "n_total": 6,
+        "min": 1.0084940900133068e-05,
+        "median": 2.6337091656989617e-05,
+        "max": 0.00011707017924001385,
+        "mean": 4.571919131110342e-05
+      }
+    },
+    "kkt_half_fails_genuinely_unresolved": {
+      "steps": [
+        78,
+        79,
+        80,
+        82,
+        83,
+        84,
+        85,
+        95,
+        96,
+        97,
+        101,
+        102
+      ],
+      "n": 12,
+      "objective_gap": {
+        "n_with_gap": 12,
+        "n_total": 12,
+        "min": 0.00024040142651979515,
+        "median": 0.00045155808013086745,
+        "max": 0.008158365983683923,
+        "mean": 0.0016870291169313646
+      }
+    },
+    "no_kkt_certificate_data": {
+      "steps": [],
+      "n": 0
+    },
+    "window": {
+      "lo": 78,
+      "hi": 109
+    },
+    "git_commit": "f45e22737d1146b3f94b7a0cc556be71d4d0736c"
+  },
+  "f45e2273_clean_ltv_constnom_20260915_011814": {
+    "n_stiff_steps": 31,
+    "n_converged": 13,
+    "n_nonconverged": 18,
+    "kkt_half_passes_blocked_by_plateau": {
+      "steps": [
+        86,
+        88,
+        89,
+        90,
+        98,
+        104
+      ],
+      "n": 6,
+      "objective_gap": {
+        "n_with_gap": 6,
+        "n_total": 6,
+        "min": 1.031999000824694e-05,
+        "median": 2.4712748560138263e-05,
+        "max": 0.00011218856785911852,
+        "mean": 4.394420248762653e-05
+      }
+    },
+    "kkt_half_fails_genuinely_unresolved": {
+      "steps": [
+        78,
+        79,
+        80,
+        82,
+        83,
+        84,
+        85,
+        95,
+        96,
+        97,
+        101,
+        102
+      ],
+      "n": 12,
+      "objective_gap": {
+        "n_with_gap": 12,
+        "n_total": 12,
+        "min": 0.00021813916587757403,
+        "median": 0.00045160009073988666,
+        "max": 0.008152974120384968,
+        "mean": 0.0016775111099777082
+      }
+    },
+    "no_kkt_certificate_data": {
+      "steps": [],
+      "n": 0
+    },
+    "window": {
+      "lo": 78,
+      "hi": 109
+    },
+    "git_commit": "f45e22737d1146b3f94b7a0cc556be71d4d0736c"
+  }
+}

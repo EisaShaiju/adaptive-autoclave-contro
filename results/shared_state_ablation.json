@@ -1,0 +1,50 @@
+{
+  "method": "ONE shared AutoclavePlant; both controllers compute from the identical (state, u_prev) every step; only the CVXPY move is ever applied; the SNN move is recorded but never reaches the plant. Isolates independent-state-divergence as a candidate mechanism for the RMS-disagreement growth under LTV, independently of the already-refuted nominal-sequence-memory hypothesis (ltv_nominal_source ablation).",
+  "config": {
+    "horizon": 10,
+    "k0_scale": 0.1,
+    "soft_state_constraints": true,
+    "trust_region": false,
+    "target_temp": 120.0,
+    "time_steps": 160
+  },
+  "git_commit": "f45e22737d1146b3f94b7a0cc556be71d4d0736c",
+  "git_working_tree_dirty_files": [
+    "M docs/PHASE4_VALIDATION_REPORT.md",
+    " M docs/SNN_MPC_TECHNICAL_REPORT.md",
+    "?? results/final_comparison/f45e2273_clean_lti_20260915_011818/",
+    "?? results/final_comparison/f45e2273_clean_ltv_20260915_011806/",
+    "?? results/final_comparison/f45e2273_clean_ltv_constnom_20260915_011814/",
+    "?? results/stiff_convergence_diagnosis.json",
+    "?? tools/shared_state_ablation.py",
+    "?? tools/stiff_convergence_diagnosis.py"
+  ],
+  "generated_at": "2026-10-05T19:05:34",
+  "results": {
+    "lti": {
+      "overall_rms_control_difference": 0.11907896282987757,
+      "stiff_window_rms_control_difference": 0.007529227948710517,
+      "stiff_window": {
+        "lo": 77,
+        "hi": 98,
+        "peak_step": 87,
+        "peak_rho_Ap": 1.721716640187799
+      },
+      "final_alpha1": 1.0,
+      "cured": true
+    },
+    "ltv": {
+      "overall_rms_control_difference": 0.1870773082854675,
+      "stiff_window_rms_control_difference": 0.4643941554211243,
+      "stiff_window": {
+        "lo": 78,
+        "hi": 99,
+        "peak_step": 88,
+        "peak_rho_Ap": 1.4822874390054606
+      },
+      "final_alpha1": 1.0,
+      "cured": true
+    }
+  },
+  "reading": "Shared-state stiff-window RMS: LTI=0.0075, LTV=0.4644 (independent-plants harness for context, NOT a like-for-like baseline -- different harness design: LTI=0.5654, LTV=2.1187). State-divergence amplification is CONFIRMED as (part of) the mechanism: removing it by construction pulls LTV's RMS back toward the LTI level."
+}
