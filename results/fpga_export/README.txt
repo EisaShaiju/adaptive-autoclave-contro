@@ -1,8 +1,8 @@
-FPGA QP export -- generated 2026-10-05T19:10:52
-Commit: f45e22737d1146b3f94b7a0cc556be71d4d0736c
-Working tree dirty: True
+FPGA QP export -- generated 2026-10-06T02:38:44
+Commit: 2d28d20449ff81bc94dcd9abb913d5a1f384f043
+Working tree dirty: False
 
-Files: f45e2273_nominal_heatup.npz, f45e2273_disturbance_step60.npz
+Files: 2d28d204_nominal_heatup.npz, 2d28d204_disturbance_step60.npz
 
 Each .npz, per scenario, stacks one QP per closed-loop step (160 steps,
 recommended config N=10, soft, k0_scale=0.1, trust_region=False, LTI mode --
